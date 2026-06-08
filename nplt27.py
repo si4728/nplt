@@ -4655,6 +4655,86 @@ def progress_make33(print_status, tag_name, tag_value1, tunit1, tag_value2, tuni
 def progress_make_table(headers, rows):
     report_list.append([8, {"headers": headers, "rows": rows}])
 
+def get_header_value(headers, header_name):
+    for key, value in headers.items():
+        if key.lower() == header_name.lower():
+            return str(value).strip()
+    return ""
+
+def collect_security_header_recommendations(headers):
+    recommendations = []
+    x_xss = get_header_value(headers, "X-XSS-Protection")
+    x_content_type = get_header_value(headers, "X-Content-Type-Options")
+    x_frame = get_header_value(headers, "X-Frame-Options")
+    csp = get_header_value(headers, "Content-Security-Policy")
+    hsts = get_header_value(headers, "Strict-Transport-Security")
+    referrer = get_header_value(headers, "Referrer-Policy")
+    permissions = get_header_value(headers, "Permissions-Policy")
+    cache_control = get_header_value(headers, "Cache-Control")
+    expires = get_header_value(headers, "Expires")
+
+    if not x_xss:
+        recommendations.append(
+            "X-XSS-Protection is missing. Modern browsers rely mainly on Content-Security-Policy; use CSP and, for legacy compatibility, consider 'X-XSS-Protection: 0' or '1; mode=block' according to policy."
+        )
+    elif x_xss.lower() in ("0", "disabled"):
+        recommendations.append(
+            "X-XSS-Protection disables legacy browser XSS filtering. Confirm this is intentional and that Content-Security-Policy is configured."
+        )
+
+    if x_content_type.lower() != "nosniff":
+        recommendations.append(
+            "X-Content-Type-Options should be set to 'nosniff' to reduce MIME sniffing risk."
+        )
+
+    if not x_frame:
+        recommendations.append(
+            "X-Frame-Options is missing. Add 'DENY' or 'SAMEORIGIN', or use CSP 'frame-ancestors' to reduce clickjacking risk."
+        )
+    elif x_frame.upper() not in ("DENY", "SAMEORIGIN") and not x_frame.upper().startswith("ALLOW-FROM"):
+        recommendations.append(
+            f"X-Frame-Options value '{x_frame}' is not a common safe value. Review DENY/SAMEORIGIN or CSP frame-ancestors."
+        )
+
+    if not csp:
+        recommendations.append(
+            "Content-Security-Policy is missing. Add a CSP, at minimum with default-src and frame-ancestors directives."
+        )
+    elif "frame-ancestors" not in csp.lower():
+        recommendations.append(
+            "Content-Security-Policy exists but has no frame-ancestors directive. Add it for clickjacking protection."
+        )
+
+    if not hsts:
+        recommendations.append(
+            "Strict-Transport-Security is missing. For HTTPS sites, add HSTS after confirming HTTPS is stable."
+        )
+
+    if not referrer:
+        recommendations.append(
+            "Referrer-Policy is missing. Consider 'strict-origin-when-cross-origin' or stricter."
+        )
+
+    if not permissions:
+        recommendations.append(
+            "Permissions-Policy is missing. Restrict unused browser features such as camera, microphone, geolocation, and payment."
+        )
+
+    cache_lower = cache_control.lower()
+    if cache_control and (
+        "no-store" not in cache_lower
+        and ("no-cache" in cache_lower or "max-age=0" in cache_lower)
+    ):
+        recommendations.append(
+            "Cache-Control disables freshness but does not prevent storage. For sensitive pages, use 'no-store, no-cache, must-revalidate'."
+        )
+    if expires and expires.strip() == "0":
+        recommendations.append(
+            "Expires is set to 0. Prefer explicit Cache-Control directives for predictable browser and proxy behavior."
+        )
+
+    return recommendations
+
 def add_hyperlink(paragraph, text, url):
     part = paragraph.part
     relationship_id = part.relate_to(
@@ -5287,6 +5367,11 @@ if __name__ == "__main__":
         progress_make(6, MessageList[73][rptLang], "")  
     if "ETag" in head_table:
         list_header.append(["Etag", head_table["Etag"]]) 
+    security_header_recommendations = collect_security_header_recommendations(head_table)
+    if security_header_recommendations:
+        progress_make(2, "Security Header Recommendations", "")
+        for recommendation in security_header_recommendations:
+            progress_make(6, " - ", recommendation)
     #######################################################
     # web site builder tool
     #######################################################

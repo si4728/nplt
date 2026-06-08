@@ -111,6 +111,36 @@ class Nplt27ImprovementTests(unittest.TestCase):
         )
         self.assertEqual(nplt27.identify_website_builder(soup), "Custom/Static Site")
 
+    def test_security_header_recommendations_cover_missing_headers(self):
+        headers = {
+            "Cache-Control": "pre-check=0, post-check=0, max-age=0",
+            "expires": "0",
+            "Content-Type": "text/html; charset=utf-8",
+        }
+        recommendations = nplt27.collect_security_header_recommendations(headers)
+        joined = "\n".join(recommendations)
+        self.assertIn("X-XSS-Protection is missing", joined)
+        self.assertIn("X-Content-Type-Options should be set to 'nosniff'", joined)
+        self.assertIn("X-Frame-Options is missing", joined)
+        self.assertIn("Content-Security-Policy is missing", joined)
+        self.assertIn("Strict-Transport-Security is missing", joined)
+        self.assertIn("Cache-Control disables freshness", joined)
+        self.assertIn("Expires is set to 0", joined)
+
+    def test_security_header_recommendations_accept_safe_core_headers(self):
+        headers = {
+            "X-XSS-Protection": "1; mode=block",
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "SAMEORIGIN",
+            "Content-Security-Policy": "default-src 'self'; frame-ancestors 'self'",
+            "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+        }
+        recommendations = nplt27.collect_security_header_recommendations(headers)
+        self.assertEqual(recommendations, [])
+
 
 if __name__ == "__main__":
     unittest.main()
