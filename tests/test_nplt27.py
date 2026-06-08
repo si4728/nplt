@@ -62,6 +62,34 @@ class Nplt27ImprovementTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("website address", result.stdout)
 
+    def test_website_builder_detects_common_generators_and_assets(self):
+        cases = [
+            ('<meta name="generator" content="WordPress 6.5">', "WordPress"),
+            ('<script src="https://static.parastorage.com/app.js"></script>', "Wix"),
+            ('<link href="https://cdn.shopify.com/theme.css" rel="stylesheet">', "Shopify"),
+            ('<script src="https://ecimg.cafe24img.com/app.js"></script>', "Cafe24"),
+            ('<link href="/theme/basic/style.css" rel="stylesheet">', "Gnuboard"),
+            ('<script src="/_next/static/chunks/main.js"></script>', "Next.js (frontend framework)"),
+        ]
+        for html, expected in cases:
+            with self.subTest(expected=expected):
+                soup = nplt27.bs(f"<html><head>{html}</head></html>", "html.parser")
+                self.assertEqual(nplt27.identify_website_builder(soup), expected)
+
+    def test_website_builder_does_not_treat_gtm_preconnect_as_hostinger(self):
+        soup = nplt27.bs(
+            '<link rel="preconnect" href="https://www.googletagmanager.com">',
+            "html.parser",
+        )
+        self.assertEqual(nplt27.identify_website_builder(soup), "Custom/Static Site")
+
+    def test_website_builder_returns_custom_static_when_no_signature_exists(self):
+        soup = nplt27.bs(
+            "<html><head><title>Company</title></head><body>Hello</body></html>",
+            "html.parser",
+        )
+        self.assertEqual(nplt27.identify_website_builder(soup), "Custom/Static Site")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2667,7 +2667,8 @@ def getheadInformation(url):
     except:
         return(None)
 
-def identify_website_builder(soup):
+def identify_website_builder_legacy(soup):
+    return identify_website_builder(soup)
     stext = str(soup)
     scripts = soup.find_all('script')
     links = soup.find_all('link')
@@ -2779,6 +2780,132 @@ def identify_website_builder(soup):
         return "Squarespace"
     else:
         return "Unknown Builder"
+
+def identify_website_builder(soup):
+    if not soup:
+        return "Custom/Static Site"
+
+    stext = str(soup)
+    stext_lower = stext.lower()
+    scripts = soup.find_all("script") if hasattr(soup, "find_all") else []
+    links = soup.find_all("link") if hasattr(soup, "find_all") else []
+    meta_tags = soup.find_all("meta") if hasattr(soup, "find_all") else []
+
+    meta_patterns = [
+        ("wordpress", "WordPress"),
+        ("wix.com website builder", "Wix"),
+        ("wix", "Wix"),
+        ("shopify", "Shopify"),
+        ("webflow", "Webflow"),
+        ("squarespace", "Squarespace"),
+        ("hostinger", "Hostinger"),
+        ("square", "Square"),
+        ("duda", "Duda"),
+        ("godaddy", "GoDaddy"),
+        ("jimdo", "Jimdo"),
+        ("site123", "SITE123"),
+        ("webador", "Webador"),
+        ("ionos", "IONOS"),
+        ("bigcommerce", "BigCommerce"),
+        ("cafe24", "Cafe24"),
+        ("gnuboard", "Gnuboard"),
+        ("rhymix", "Rhymix"),
+        ("xpressengine", "XpressEngine"),
+        ("xe", "XpressEngine"),
+        ("imweb", "Imweb"),
+        ("sixshop", "Sixshop"),
+        ("makeshop", "Makeshop"),
+        ("godo", "Godo Mall"),
+    ]
+    url_patterns = [
+        ("wp-content", "WordPress"),
+        ("wp-includes", "WordPress"),
+        ("static.parastorage.com", "Wix"),
+        ("wixstatic.com", "Wix"),
+        ("wix.com", "Wix"),
+        ("cdn.shopify.com", "Shopify"),
+        ("myshopify.com", "Shopify"),
+        ("webflow.com", "Webflow"),
+        ("assets-global.website-files.com", "Webflow"),
+        ("squarespace.com", "Squarespace"),
+        ("static1.squarespace.com", "Squarespace"),
+        ("dudamobile.com", "Duda"),
+        ("godaddy.com", "GoDaddy"),
+        ("jimdo.com", "Jimdo"),
+        ("site123.com", "SITE123"),
+        ("site123.me", "SITE123"),
+        ("static.s123-cdn-network-a.com", "SITE123"),
+        ("webador.com", "Webador"),
+        ("ionos.com", "IONOS"),
+        ("bigcommerce.com", "BigCommerce"),
+        ("hostinger", "Hostinger"),
+        ("cafe24.com", "Cafe24"),
+        ("cafe24.co.kr", "Cafe24"),
+        ("ecimg.cafe24img.com", "Cafe24"),
+        ("img.echosting.cafe24.com", "Cafe24"),
+        ("/shop", "Cafe24"),
+        ("gnuboard", "Gnuboard"),
+        ("/bbs/", "Gnuboard"),
+        ("/theme/basic", "Gnuboard"),
+        ("rhymix", "Rhymix"),
+        ("xpressengine", "XpressEngine"),
+        ("/modules/", "XpressEngine"),
+        ("imweb.me", "Imweb"),
+        ("cdn.imweb.me", "Imweb"),
+        ("sixshop.com", "Sixshop"),
+        ("makeshop", "Makeshop"),
+        ("godo.co.kr", "Godo Mall"),
+        ("godomall", "Godo Mall"),
+    ]
+    framework_patterns = [
+        (r"/assets/index\.[a-f0-9]{8,}\.js(?:\.map)?$", "Vite (frontend build tool)"),
+        (r"/_next/static/", "Next.js (frontend framework)"),
+        (r"/_nuxt/", "Nuxt (frontend framework)"),
+        (r"webpackjsonp", "Webpack (frontend build tool)"),
+    ]
+
+    for meta in meta_tags:
+        name = (meta.get("name") or "").strip().lower()
+        prop = (meta.get("property") or "").strip().lower()
+        content = (meta.get("content") or "").strip()
+        content_lower = content.lower()
+        if name == "generator":
+            for pattern, builder in meta_patterns:
+                if pattern in content_lower:
+                    return builder
+        if prop == "og:url" and content == "https://coderium-studio.com/":
+            return "CODERIUM"
+
+    asset_values = []
+    for script in scripts:
+        src = script.get("src") or ""
+        if src:
+            asset_values.append(src)
+        inline_script = script.get_text(" ", strip=True)
+        if inline_script:
+            asset_values.append(inline_script[:5000])
+    for link in links:
+        href = link.get("href") or ""
+        if href:
+            asset_values.append(href)
+
+    for value in asset_values:
+        value_lower = value.lower()
+        for pattern, builder in url_patterns:
+            if pattern in value_lower:
+                return builder
+        for pattern, builder in framework_patterns:
+            if re.search(pattern, value_lower):
+                return builder
+
+    for pattern, builder in url_patterns:
+        if pattern in stext_lower:
+            return builder
+    for pattern, builder in framework_patterns:
+        if re.search(pattern, stext_lower):
+            return builder
+
+    return "Custom/Static Site"
 
 # import re
 
