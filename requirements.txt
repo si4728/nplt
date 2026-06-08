@@ -1,0 +1,14 @@
+anytree
+beautifulsoup4
+matplotlib
+mysql-connector-python
+networkx
+nltk
+numpy
+opencv-python
+Pillow
+python-docx
+requests
+scikit-learn
+urllib3
+wordcloud

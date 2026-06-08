@@ -4359,7 +4359,8 @@ def report_write(outfile,graphfile):
 
 
 def make_word_cloud(dtext, sfile):
-    wordcloud = WordCloud(font_path='fonts/NanumGothic.ttf',background_color='white',relative_scaling=1,normalize_plurals=False).generate_from_frequencies(dtext)
+    font_path = BASE_DIR / "fonts" / "NanumGothic.ttf"
+    wordcloud = WordCloud(font_path=str(font_path),background_color='white',relative_scaling=1,normalize_plurals=False).generate_from_frequencies(dtext)
                                                                                                     
     filename = "wc_" + sfile
 
