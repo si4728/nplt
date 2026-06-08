@@ -81,6 +81,16 @@ class Nplt27ImprovementTests(unittest.TestCase):
             ('<div data-v-123abc>App</div>', "Vue (frontend framework)"),
             ('<app-root ng-version="17.0.0"></app-root>', "Angular (frontend framework)"),
             ('<script src="/page-data/app-data.json"></script>', "Gatsby"),
+            ('<script src="/wp-content/plugins/elementor/assets/js/frontend.js"></script>', "Elementor"),
+            ('<script src="/ghost/content/js/app.js"></script>', "Ghost"),
+            ('<script src="https://static.hsappstatic.net/cms.js"></script>', "HubSpot CMS"),
+            ('<script src="https://www.blogger.com/static/v1/widgets.js"></script>', "Blogger"),
+            ('<script src="https://framerusercontent.com/sites/app.js"></script>', "Framer"),
+            ('<link href="https://static.tildacdn.com/css/tilda-grid.css" rel="stylesheet">', "Tilda"),
+            ('<script src="https://assets.carrd.co/assets/js/main.js"></script>', "Carrd"),
+            ('<script src="https://shopby.cloud/assets/storefront.js"></script>', "Shopby"),
+            ('<link href="https://firstmall.kr/data/skin/style.css" rel="stylesheet">', "Gabia Firstmall"),
+            ('<script src="https://wisaimg.co.kr/js/shop.js"></script>', "WISA"),
         ]
         for html, expected in cases:
             with self.subTest(expected=expected):
