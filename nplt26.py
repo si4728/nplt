@@ -49,6 +49,7 @@ import socket
 import sys
 import tempfile
 import time
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 import urllib.error
@@ -203,6 +204,7 @@ list_title = []                 ##check dupulicate title  []= [[url,title]] 2029
 list_function = []
 list_script =[]     ### [[name,path,type]]
 list_sns = dict()
+sns_details = {}
 list_html5_tag=dict()
 list_domain = []
 list_plugin = []
@@ -539,6 +541,37 @@ sns_domain_list =["x.com", "www.facebook.com", "www.whatsapp.com", "www.qq.com",
 "www.friendster.com", "www.funnyordie.com", "www.gaiaonline.com", "weheartit.com", "www.buzznet.com",
 "www.deviantart.com", "www.flickr.com", "www.meetme.com", "www.meetup.com", "mixi.jp", "www.douban.com", "blog.naver.com", 
 "www.spreely.com", "discordapp.com", "www.kakaocorp.com", "pf.kakao.com", "story.kakao.com", "youtu.be" ]
+
+SNS_PLATFORMS = {
+    "Facebook": {"facebook.com"},
+    "Instagram": {"instagram.com"},
+    "YouTube": {"youtube.com", "youtu.be"},
+    "X/Twitter": {"x.com", "twitter.com"},
+    "LinkedIn": {"linkedin.com"},
+    "Naver Blog": {"blog.naver.com"},
+    "Kakao": {"kakaocorp.com", "pf.kakao.com", "story.kakao.com", "open.kakao.com"},
+    "TikTok": {"tiktok.com"},
+    "Threads": {"threads.net"},
+    "WhatsApp": {"whatsapp.com"},
+    "Pinterest": {"pinterest.co.kr", "pinterest.com"},
+    "Telegram": {"telegram.org", "t.me"},
+    "Reddit": {"reddit.com"},
+    "Discord": {"discordapp.com", "discord.com"},
+    "Line": {"line.me"},
+}
+
+SNS_SHARE_PATHS = (
+    "/share",
+    "/sharer",
+    "/intent/",
+    "/sharing/",
+    "/send",
+)
+
+SNS_EMBED_PATHS = (
+    "/embed/",
+    "/plugins/",
+)
 
 html5_elements = [
     'article', 'aside', 'audio', 'canvas', 'datalist', 'details', 'dialog',
@@ -958,7 +991,7 @@ def _report_to_db(cursor, photo):
         ### ESG
         recno = 0
         if len(esg_count) > 0:
-            for ws, wc in esg_count.items():
+            for ws, wc in sorted(esg_count.items(), key=lambda item: (-item[1], item[0])):
                 print(ws,wc)
 
                 if len(ws) > 49:
@@ -973,7 +1006,7 @@ def _report_to_db(cursor, photo):
         
         if len(word_count) > 0:            
             recno = 1
-            for ws, wc in  word_count.items():
+            for ws, wc in  sorted(word_count.items(), key=lambda item: (-item[1], item[0])):
                 print(ws,wc)
                 if len(ws) > 49:
                     ws = ws[:49]
@@ -1011,7 +1044,7 @@ def _report_to_db(cursor, photo):
             result = cursor.execute(sql,sql_args)
  
         if len(list_sns) > 0:
-            for sns_url, sns_cnt in list_sns.items():
+            for sns_url, sns_cnt in sorted(list_sns.items(), key=lambda item: (-item[1], item[0])):
                 sql = 'INSERT INTO sns (id, sns_url, sns_cnt) VALUES(%s, %s, %s)' 
                 args = (last_id, sns_url, sns_cnt)
                 result = cursor.execute(sql,args)
@@ -1517,14 +1550,153 @@ def check_stringAll(string, substring_list):
             list_tmp.append(substring)
     return list_tmp
 
+def normalize_keyword_text(value):
+    value = unicodedata.normalize("NFKC", str(value or ""))
+    value = re.sub(r"\s+", " ", value)
+    return value.strip().casefold()
+
+def normalized_esg_keywords():
+    keywords = []
+    seen = set()
+    for keyword in nplt_esg_word:
+        clean_keyword = unicodedata.normalize("NFKC", str(keyword)).strip()
+        clean_keyword = re.sub(r"\s+", " ", clean_keyword)
+        if not clean_keyword:
+            continue
+        normalized = normalize_keyword_text(clean_keyword)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        keywords.append((clean_keyword, normalized))
+    keywords.sort(key=lambda item: len(item[1]), reverse=True)
+    return keywords
+
+def contains_english_word_boundary(text, keyword):
+    if not re.fullmatch(r"[a-z0-9][a-z0-9 -]*", keyword):
+        return keyword in text
+    pattern = r"(?<![a-z0-9])" + re.escape(keyword) + r"(?![a-z0-9])"
+    return re.search(pattern, text) is not None
+
 def counting_esg_word(txt):     
      ls = set()
-     l = check_stringAll(txt, nplt_esg_word)
-     for w in l:
-        if w not in ls:            
-            esg_count[w] = esg_count.get(w,0) + 1  
-            ls.add(w)
+     normalized_text = normalize_keyword_text(txt)
+     for original, normalized in normalized_esg_keywords():
+        if contains_english_word_boundary(normalized_text, normalized):
+            esg_count[original] = esg_count.get(original,0) + 1
+            ls.add(original)
      return ls
+
+def normalize_sns_host(host_or_url):
+    if not host_or_url:
+        return ""
+    value = str(host_or_url).strip()
+    parsed = urlparse(value if "://" in value else f"http://{value}")
+    host = parsed.hostname or value.split("/")[0]
+    host = host.strip().strip(".").lower()
+    if host.startswith(("www.", "m.", "mobile.")):
+        host = host.split(".", 1)[1]
+    return host
+
+def host_matches_domain(host, domain):
+    host = normalize_sns_host(host)
+    domain = normalize_sns_host(domain)
+    return host == domain or host.endswith("." + domain)
+
+def identify_sns_platform(url_or_host):
+    host = normalize_sns_host(url_or_host)
+    for platform, domains in SNS_PLATFORMS.items():
+        if any(host_matches_domain(host, domain) for domain in domains):
+            return platform
+    legacy_domains = {normalize_sns_host(domain) for domain in sns_domain_list}
+    if host in legacy_domains:
+        return host
+    return None
+
+def classify_sns_url(url):
+    parsed = urlparse(url if "://" in str(url) else f"http://{url}")
+    path = (parsed.path or "").lower()
+    host = normalize_sns_host(parsed.hostname or parsed.netloc)
+    if any(marker in path for marker in SNS_SHARE_PATHS):
+        return "share"
+    if any(marker in path for marker in SNS_EMBED_PATHS):
+        return "embed"
+    if parsed.query and any(key in parsed.query.lower() for key in ("url=", "u=", "text=")):
+        return "share"
+    if host == "youtu.be" and path not in ("", "/"):
+        return "content"
+    if path in ("", "/"):
+        return "profile"
+    if re.search(r"/(watch|shorts|reel|reels|posts|status|tweet|news|article)/?", path):
+        return "content"
+    return "profile"
+
+def normalize_sns_url(url):
+    parsed = urlparse(url if "://" in str(url) else f"http://{url}")
+    scheme = parsed.scheme or "http"
+    host = normalize_sns_host(parsed.hostname or parsed.netloc)
+    path = parsed.path or "/"
+    if path != "/":
+        path = path.rstrip("/")
+    query_items = [
+        (key, value)
+        for key, value in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+        if not key.lower().startswith("utm_")
+    ]
+    query = urllib.parse.urlencode(sorted(query_items))
+    normalized = f"{scheme}://{host}{path}"
+    if query:
+        normalized = f"{normalized}?{query}"
+    return normalized
+
+def record_sns_link(url, source_url=None):
+    platform = identify_sns_platform(url)
+    if not platform:
+        return None
+    link_type = classify_sns_url(url)
+    normalized_url = normalize_sns_url(url)
+    detail = sns_details.setdefault(
+        platform,
+        {
+            "urls": set(),
+            "pages": set(),
+            "types": {},
+            "representative_url": normalized_url,
+        },
+    )
+    detail["urls"].add(normalized_url)
+    if source_url:
+        detail["pages"].add(source_url)
+    detail["types"][link_type] = detail["types"].get(link_type, 0) + 1
+    if detail.get("representative_url") in ("", None):
+        detail["representative_url"] = normalized_url
+    list_sns[platform] = len(detail["urls"])
+    return platform
+
+def build_sns_report_rows():
+    rows = []
+    for platform, detail in sorted(
+        sns_details.items(),
+        key=lambda item: (len(item[1]["urls"]), item[0]),
+        reverse=True,
+    ):
+        types = ", ".join(
+            f"{name}:{count}"
+            for name, count in sorted(detail["types"].items())
+        )
+        rows.append(
+            [
+                platform,
+                types or "unknown",
+                str(len(detail["pages"])),
+                str(len(detail["urls"])),
+                detail.get("representative_url", ""),
+            ]
+        )
+    if rows:
+        return rows
+    for platform, count in sorted(list_sns.items(), key=lambda item: (-item[1], item[0])):
+        rows.append([platform, "unknown", "", str(count), ""])
+    return rows
 
 def get_varList(shtml):
     shtml=shtml.replace("==","")    
@@ -2791,7 +2963,7 @@ def getaCompareSite(siteflag):
 def abnormal_url(u):
     s = u.split("?")
     if len(s)==2:
-        if s[0].upper().find("LOGIN"):
+        if "LOGIN" in s[0].upper():
             if s[1].find("&")==-1:
                 return True
     return False
@@ -3041,8 +3213,7 @@ def scanWeb(url, Purl):
         xUrl = get_domain(url)
         ###print(xUrl, url, baseUrl)
         if relation_domain(url, baseUrl) == -1:  ## 2021.08.22
-            if xUrl in sns_domain_list:
-                list_sns[xUrl] = list_sns.get(xUrl,0) + 1  
+            record_sns_link(url, Purl)
             if url.find("blog") > -1:
                 print (url, "    ", xUrl)
             print ("skip other domain: ", url, xUrl, baseUrl, get_domain(baseUrl), get_domain(url))
@@ -4255,6 +4426,34 @@ def progress_make33(print_status, tag_name, tag_value1, tunit1, tag_value2, tuni
     
     progress_make(print_status, tag_name, mstr)
 
+def progress_make_table(headers, rows):
+    report_list.append([8, {"headers": headers, "rows": rows}])
+
+def add_hyperlink(paragraph, text, url):
+    part = paragraph.part
+    relationship_id = part.relate_to(
+        url,
+        docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK,
+        is_external=True,
+    )
+    hyperlink = docx.oxml.shared.OxmlElement("w:hyperlink")
+    hyperlink.set(docx.oxml.shared.qn("r:id"), relationship_id)
+    run = docx.oxml.shared.OxmlElement("w:r")
+    properties = docx.oxml.shared.OxmlElement("w:rPr")
+    color = docx.oxml.shared.OxmlElement("w:color")
+    color.set(docx.oxml.shared.qn("w:val"), "0000FF")
+    underline = docx.oxml.shared.OxmlElement("w:u")
+    underline.set(docx.oxml.shared.qn("w:val"), "single")
+    properties.append(color)
+    properties.append(underline)
+    run.append(properties)
+    text_node = docx.oxml.shared.OxmlElement("w:t")
+    text_node.text = text
+    run.append(text_node)
+    hyperlink.append(run)
+    paragraph._p.append(hyperlink)
+    return hyperlink
+
 def report_write(outfile,graphfile):
     doc = docx.Document()
 
@@ -4308,6 +4507,10 @@ def report_write(outfile,graphfile):
                 image_path = Path(sline)
                 if not image_path.is_absolute():
                     image_path = BASE_DIR / image_path
+                if not image_path.is_file():
+                    run = para.add_run(f"    [image unavailable: {image_path}]\n")
+                    run.font.size = Pt(10)
+                    continue
                 add_picture_fitted(
                     para.add_run(),
                     image_path,
@@ -4339,6 +4542,23 @@ def report_write(outfile,graphfile):
                     run.add_text(f" [favicon image unavailable: {error}]")
                 run.add_text("\n")   
                 run = para.add_run("\n")         
+            elif xstyle == 8:
+                para = doc.add_paragraph()
+                headers = sline.get("headers", [])
+                rows = sline.get("rows", [])
+                table = doc.add_table(rows=1, cols=len(headers))
+                table.style = "Table Grid"
+                for index, header_text in enumerate(headers):
+                    table.rows[0].cells[index].text = str(header_text)
+                for row in rows:
+                    cells = table.add_row().cells
+                    for index, value in enumerate(row):
+                        text_value = str(value)
+                        if text_value.startswith(("http://", "https://")):
+                            add_hyperlink(cells[index].paragraphs[0], text_value, text_value)
+                        else:
+                            cells[index].text = text_value
+                para = doc.add_paragraph()
             else:
                 #### x code check 할것 2021.2.6 ValueError: All strings must be XML compatible: Unicode or ASCII, no NULL bytes or control characters
 
@@ -5230,13 +5450,14 @@ if __name__ == "__main__":
     # SNS Site information
     #######################################################
     progress_make(2, MessageList[64][rptLang],"")
-    xno = 0
-    for sns,count in list_sns.items():
-        xno = xno + 1
-        xtr = '{:2d}'.format(xno) + '{:5d}'.format(count) + "   " + sns
-        progress_make(1, " ", xtr)   
-    if xno == 0:
-        progress_make(1,MessageList[65][rptLang],"")   
+    sns_rows = build_sns_report_rows()
+    if sns_rows:
+        progress_make_table(
+            ["Platform", "Type counts", "Pages", "Unique URLs", "Representative URL"],
+            sns_rows,
+        )
+    else:
+        progress_make(1, " - No SNS links were found.", "")
     #######################################################
     progress_make(2, MessageList[55][rptLang], "")
     gr = googleSearch(baseUrl)
@@ -5305,7 +5526,7 @@ if __name__ == "__main__":
             word_list.append(xtr)
         word_list.sort(reverse=True)
 
-        progress_make(2, MessageList[89][rptLang], " (" + str(keyWordList) + ")")  
+        progress_make(2, "Pages containing ESG keywords", " (" + str(keyWordList) + ")")  
         record_no = 1
         for wl in word_list:
             ws = wl[9:]

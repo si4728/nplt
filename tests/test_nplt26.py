@@ -243,6 +243,20 @@ class Nplt26UtilityTests(unittest.TestCase):
                 content_width,
             )
 
+    def test_report_write_handles_missing_image_entry(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            with (
+                patch.object(nplt26, "DEFAULT_REPORT_PATH", str(temp_path) + "/"),
+                patch.object(nplt26, "baseUrl", "example.com"),
+                patch.object(nplt26, "report_list", [[5, "missing-chart.png"]]),
+            ):
+                nplt26.report_write("missing-image-report.docx", "unused.png")
+
+            document = Document(temp_path / "missing-image-report.docx")
+            text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+            self.assertIn("image unavailable", text)
+
     def test_tree_map_separates_internal_paths_and_external_domains(self):
         edges = [
             ("/", "/bbs/view.php?id=1"),
@@ -450,6 +464,96 @@ class Nplt26UtilityTests(unittest.TestCase):
         connection.commit.assert_called_once()
         cursor.close.assert_called_once()
         connection.close.assert_called_once()
+
+    def test_abnormal_url_allows_normal_query_urls(self):
+        self.assertFalse(nplt26.abnormal_url("https://www.youtube.com/watch?v=abc"))
+        self.assertFalse(nplt26.abnormal_url("https://twitter.com/intent/tweet?url=x"))
+        self.assertTrue(nplt26.abnormal_url("https://example.com/login?next=home"))
+
+    def test_sns_platform_detection_normalizes_hosts(self):
+        self.assertEqual(
+            nplt26.identify_sns_platform("https://m.facebook.com/acme"),
+            "Facebook",
+        )
+        self.assertEqual(
+            nplt26.identify_sns_platform("https://youtube.com/watch?v=1"),
+            "YouTube",
+        )
+        self.assertEqual(
+            nplt26.identify_sns_platform("https://youtu.be/abc"),
+            "YouTube",
+        )
+        self.assertIsNone(nplt26.identify_sns_platform("https://fakefacebook.com"))
+
+    def test_record_sns_link_tracks_types_pages_and_unique_urls(self):
+        original_list = nplt26.list_sns
+        original_details = nplt26.sns_details
+        try:
+            nplt26.list_sns = {}
+            nplt26.sns_details = {}
+            nplt26.record_sns_link(
+                "https://www.youtube.com/watch?v=abc&utm_source=test",
+                "https://example.com/page1",
+            )
+            nplt26.record_sns_link(
+                "https://youtu.be/xyz",
+                "https://example.com/page2",
+            )
+
+            self.assertEqual(nplt26.list_sns["YouTube"], 2)
+            self.assertEqual(nplt26.sns_details["YouTube"]["types"]["content"], 2)
+            self.assertNotIn("profile", nplt26.sns_details["YouTube"]["types"])
+            self.assertEqual(len(nplt26.sns_details["YouTube"]["pages"]), 2)
+        finally:
+            nplt26.list_sns = original_list
+            nplt26.sns_details = original_details
+
+    def test_report_write_renders_sns_table_with_hyperlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            rows = [
+                [
+                    "YouTube",
+                    "content:1",
+                    "1",
+                    "1",
+                    "https://youtube.com/watch?v=abc",
+                ]
+            ]
+            with (
+                patch.object(nplt26, "DEFAULT_REPORT_PATH", str(temp_path) + "/"),
+                patch.object(nplt26, "baseUrl", "example.com"),
+                patch.object(nplt26, "report_list", []),
+            ):
+                nplt26.progress_make(2, "SNS link information", "")
+                nplt26.progress_make_table(
+                    ["Platform", "Type counts", "Pages", "Unique URLs", "Representative URL"],
+                    rows,
+                )
+                nplt26.report_write("sns-report.docx", "unused.png")
+
+            document = Document(temp_path / "sns-report.docx")
+            self.assertEqual(len(document.tables), 1)
+            self.assertEqual(document.tables[0].cell(1, 0).text, "YouTube")
+            self.assertIn(
+                "hyperlink",
+                document.tables[0].cell(1, 4).paragraphs[0]._p.xml,
+            )
+
+    def test_counting_esg_word_is_case_and_space_normalized(self):
+        original_count = nplt26.esg_count
+        try:
+            nplt26.esg_count = {}
+            found = nplt26.counting_esg_word(
+                "Our Climate   Change policy improves 지속 가능성."
+            )
+            self.assertIn("CLIMATE CHANGE", found)
+            self.assertTrue(
+                "지속가능성" in found or "지속 가능성" in found
+            )
+            self.assertEqual(nplt26.esg_count["CLIMATE CHANGE"], 1)
+        finally:
+            nplt26.esg_count = original_count
 
     def test_import_has_no_console_output(self):
         workspace = Path(__file__).resolve().parents[1]
