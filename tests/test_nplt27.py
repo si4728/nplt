@@ -70,6 +70,17 @@ class Nplt27ImprovementTests(unittest.TestCase):
             ('<script src="https://ecimg.cafe24img.com/app.js"></script>', "Cafe24"),
             ('<link href="/theme/basic/style.css" rel="stylesheet">', "Gnuboard"),
             ('<script src="/_next/static/chunks/main.js"></script>', "Next.js (frontend framework)"),
+            ('<script src="/media/system/js/core.js"></script>', "Joomla"),
+            ('<script type="application/json">drupal-settings-json</script>', "Drupal"),
+            ('<script src="/static/version123/frontend/theme.js"></script>', "Magento"),
+            ('<link href="/catalog/view/theme/default/style.css" rel="stylesheet">', "OpenCart"),
+            ('<script src="https://tistory1.daumcdn.net/tistory.js"></script>', "Tistory"),
+            ('<script src="https://cdn.modoo.at/app.js"></script>', "Naver Modoo"),
+            ('<script src="/js/bootstrap.bundle.min.js"></script>', "Bootstrap (frontend framework)"),
+            ('<div data-reactroot="">App</div>', "React (frontend library)"),
+            ('<div data-v-123abc>App</div>', "Vue (frontend framework)"),
+            ('<app-root ng-version="17.0.0"></app-root>', "Angular (frontend framework)"),
+            ('<script src="/page-data/app-data.json"></script>', "Gatsby"),
         ]
         for html, expected in cases:
             with self.subTest(expected=expected):
