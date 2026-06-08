@@ -14,6 +14,11 @@
 
 - `abnormal_url()`의 `find()` 조건 오류를 수정했다.
 - `facebook.com`, `m.facebook.com`, `youtube.com`, `youtu.be` 등 서브도메인과 단축 도메인을 플랫폼 단위로 통합하도록 했다.
+- 한국/글로벌 주요 플랫폼을 추가했다.
+  - Naver Band, Naver Cafe, Naver Post, Naver TV
+  - Kakao Channel
+  - Messenger, Snapchat, Twitch, Vimeo, Medium
+  - WeChat, Weibo, Douyin
 - `SNS_PLATFORMS` 구조를 추가했다.
 - `record_sns_link()`로 플랫폼, 유형, 페이지, 고유 URL을 분리 집계하도록 했다.
 - SNS 유형을 `profile`, `content`, `share`, `embed`로 분류하도록 했다.
@@ -58,6 +63,7 @@
 - 누락 이미지 보고서 처리
 - DB count 저장 정렬 및 제한
 - 비 HTTP 계열 스킴 필터
+- 추가 SNS 플랫폼 식별
 
 ## 테스트 명령
 
@@ -69,7 +75,7 @@ python nplt26.py -url http://www.onbranding.co.kr -cost Yes -ca No -db No -robot
 
 ## 테스트 결과
 
-- 단위 테스트: 50개 통과
+- 단위 테스트: 51개 통과
 - CLI 도움말: 정상
 - 실제 URL 테스트: 정상 종료
 - 대상 URL: `http://www.onbranding.co.kr`

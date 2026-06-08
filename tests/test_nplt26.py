@@ -506,6 +506,26 @@ class Nplt26UtilityTests(unittest.TestCase):
         )
         self.assertIsNone(nplt26.identify_sns_platform("https://fakefacebook.com"))
 
+    def test_sns_platform_detection_includes_korean_and_global_services(self):
+        cases = {
+            "https://band.us/band/123": "Naver Band",
+            "https://cafe.naver.com/example": "Naver Cafe",
+            "https://post.naver.com/viewer/postView.naver": "Naver Post",
+            "https://tv.naver.com/v/123": "Naver TV",
+            "https://pf.kakao.com/_abc": "Kakao Channel",
+            "https://channel.kakao.com/example": "Kakao Channel",
+            "https://m.me/example": "Messenger",
+            "https://www.snapchat.com/add/example": "Snapchat",
+            "https://www.twitch.tv/example": "Twitch",
+            "https://medium.com/@example/post": "Medium",
+            "https://mp.weixin.qq.com/s/example": "WeChat",
+            "https://weibo.com/example": "Weibo",
+            "https://www.douyin.com/user/example": "Douyin",
+        }
+        for url, platform in cases.items():
+            with self.subTest(url=url):
+                self.assertEqual(nplt26.identify_sns_platform(url), platform)
+
     def test_record_sns_link_tracks_types_pages_and_unique_urls(self):
         original_list = nplt26.list_sns
         original_details = nplt26.sns_details
