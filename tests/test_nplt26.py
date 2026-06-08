@@ -465,6 +465,27 @@ class Nplt26UtilityTests(unittest.TestCase):
         cursor.close.assert_called_once()
         connection.close.assert_called_once()
 
+    def test_insert_count_rows_sorts_and_limits_rows(self):
+        cursor = Mock()
+        nplt26.insert_count_rows(
+            cursor,
+            "word",
+            7,
+            "keyword",
+            "wcount",
+            {"beta": 1, "alpha": 3, "gamma": 2},
+            max_rows=2,
+        )
+        self.assertEqual(cursor.execute.call_count, 2)
+        self.assertEqual(cursor.execute.call_args_list[0].args[1], (7, "alpha", 3))
+        self.assertEqual(cursor.execute.call_args_list[1].args[1], (7, "gamma", 2))
+
+    def test_should_skip_scheme_detects_non_http_links(self):
+        self.assertTrue(nplt26.should_skip_scheme("mailto:test@example.com"))
+        self.assertTrue(nplt26.should_skip_scheme("tel:01012345678"))
+        self.assertTrue(nplt26.should_skip_scheme("moovit://route"))
+        self.assertFalse(nplt26.should_skip_scheme("https://example.com"))
+
     def test_abnormal_url_allows_normal_query_urls(self):
         self.assertFalse(nplt26.abnormal_url("https://www.youtube.com/watch?v=abc"))
         self.assertFalse(nplt26.abnormal_url("https://twitter.com/intent/tweet?url=x"))

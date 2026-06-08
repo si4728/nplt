@@ -38,6 +38,12 @@
 
 - ESG, 일반 word, SNS 저장 순서를 count 내림차순으로 정렬했다.
 - 기존 DB 테이블 구조는 유지했다.
+- 반복되던 count 저장 로직을 `insert_count_rows()`로 분리했다.
+
+### 링크 수집 및 스캔 루프
+
+- 비 HTTP 계열 스킴 필터를 `should_skip_scheme()`로 분리했다.
+- 외부 링크 및 SNS 기록 처리를 `handle_external_link()`로 분리했다.
 
 ## 추가 테스트
 
@@ -50,6 +56,8 @@
 - SNS Word 표와 하이퍼링크 생성
 - ESG 대소문자 및 공백 정규화 검색
 - 누락 이미지 보고서 처리
+- DB count 저장 정렬 및 제한
+- 비 HTTP 계열 스킴 필터
 
 ## 테스트 명령
 
@@ -61,7 +69,7 @@ python nplt26.py -url http://www.onbranding.co.kr -cost Yes -ca No -db No -robot
 
 ## 테스트 결과
 
-- 단위 테스트: 48개 통과
+- 단위 테스트: 50개 통과
 - CLI 도움말: 정상
 - 실제 URL 테스트: 정상 종료
 - 대상 URL: `http://www.onbranding.co.kr`

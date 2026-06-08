@@ -937,6 +937,20 @@ def insertImage(id_num, url_address, photo):
         print(f"Failed inserting BLOB data into MySQL table: {error}")
         return False
 
+def sorted_count_items(values):
+    return sorted(values.items(), key=lambda item: (-item[1], item[0]))
+
+def insert_count_rows(cursor, table_name, id_num, key_field, count_field, values, max_rows=None):
+    recno = 0
+    for key, count in sorted_count_items(values):
+        if isinstance(key, str) and len(key) > 49:
+            key = key[:49]
+        sql = f"INSERT INTO {table_name} (id, {key_field}, {count_field}) VALUES(%s, %s, %s)"
+        cursor.execute(sql, (id_num, key, count))
+        recno += 1
+        if max_rows is not None and recno >= max_rows:
+            break
+
 def report_to_db(photo):
     retValue = 1
     try:
@@ -989,34 +1003,11 @@ def _report_to_db(cursor, photo):
         # connection.commit()
 
         ### ESG
-        recno = 0
         if len(esg_count) > 0:
-            for ws, wc in sorted(esg_count.items(), key=lambda item: (-item[1], item[0])):
-                print(ws,wc)
-
-                if len(ws) > 49:
-                    ws = ws[:49]
-                sql = 'INSERT INTO esg (id, keyword, wcount) VALUES(%s, %s, %s)' 
-                args = (last_id, ws, wc)
-                print(sql, args)
-                result = cursor.execute(sql,args)
-                recno += 1
-                if recno > keyWordList:
-                    break
+            insert_count_rows(cursor, "esg", last_id, "keyword", "wcount", esg_count, keyWordList)
         
         if len(word_count) > 0:            
-            recno = 1
-            for ws, wc in  sorted(word_count.items(), key=lambda item: (-item[1], item[0])):
-                print(ws,wc)
-                if len(ws) > 49:
-                    ws = ws[:49]
-                sql = 'INSERT INTO word (id, keyword, wcount) VALUES(%s, %s, %s)' 
-                args = (last_id, ws, wc)
-                print(sql, args)
-                result = cursor.execute(sql,args)
-                recno += 1
-                if recno > keyWordList:
-                    break
+            insert_count_rows(cursor, "word", last_id, "keyword", "wcount", word_count, keyWordList)
 
         #####headdr information
         tlst = []
@@ -1044,10 +1035,7 @@ def _report_to_db(cursor, photo):
             result = cursor.execute(sql,sql_args)
  
         if len(list_sns) > 0:
-            for sns_url, sns_cnt in sorted(list_sns.items(), key=lambda item: (-item[1], item[0])):
-                sql = 'INSERT INTO sns (id, sns_url, sns_cnt) VALUES(%s, %s, %s)' 
-                args = (last_id, sns_url, sns_cnt)
-                result = cursor.execute(sql,args)
+            insert_count_rows(cursor, "sns", last_id, "sns_url", "sns_cnt", list_sns)
 
         tlst = []
         tlst.append(last_id)
@@ -3116,6 +3104,23 @@ def addScanList(t,f,u,s):
     if al > bl:       
         scanWebList.append([t,f,u])
 
+def should_skip_scheme(url):
+    return (
+        url[:7] == "moovit:"
+        or url[:7] == "mailto:"
+        or url[:4] == "tel:"
+    )
+
+def handle_external_link(url, source_url):
+    if relation_domain(url, baseUrl) != -1:
+        return False
+    xUrl = get_domain(url)
+    record_sns_link(url, source_url)
+    if url.find("blog") > -1:
+        print(url, "    ", xUrl)
+    print("skip other domain: ", url, xUrl, baseUrl, get_domain(baseUrl), get_domain(url))
+    return True
+
 def scanWeb(url, Purl):
 
     global baseUrl
@@ -3134,11 +3139,7 @@ def scanWeb(url, Purl):
         print("online_score exceed !")
         return
  
-    if "moovit:" == url[:7]:
-        return
-    if "mailto:" == url[:7]:
-        return
-    if "tel:" == url[:4]:
+    if should_skip_scheme(url):
         return
 
     ## 2021.9.5 
@@ -3210,18 +3211,11 @@ def scanWeb(url, Purl):
 
     #print(baseUrl, url, "<<<<<<")
     try:
-        xUrl = get_domain(url)
-        ###print(xUrl, url, baseUrl)
-        if relation_domain(url, baseUrl) == -1:  ## 2021.08.22
-            record_sns_link(url, Purl)
-            if url.find("blog") > -1:
-                print (url, "    ", xUrl)
-            print ("skip other domain: ", url, xUrl, baseUrl, get_domain(baseUrl), get_domain(url))
+        if handle_external_link(url, Purl):  ## 2021.08.22
             return
     except:
         print("805 : url=", url)
         print("Unexpected error:", sys.exc_info()[0])
-        print("xUrl=",xUrl)
         print("baseUrl=", baseUrl)
     
     counter = counter + 1
