@@ -174,6 +174,10 @@ class Nplt27ImprovementTests(unittest.TestCase):
             nplt27._report_to_db(cursor, "unused.docx")
         cursor.execute.assert_not_called()
 
+    @patch("nplt27.get_lastnumber", return_value=123)
+    def test_db_connection_check_message_uses_next_id(self, get_lastnumber):
+        self.assertEqual(nplt27.get_lastnumber(), 123)
+
 
 if __name__ == "__main__":
     unittest.main()

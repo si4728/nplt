@@ -5053,6 +5053,13 @@ if __name__ == "__main__":
     
     if dbConnection == 1:
         dbConnection_id = args.id
+        print(f"Database update: enabled (company id: {dbConnection_id})")
+        print(
+            "Database connection check: OK "
+            f"(next id: {get_lastnumber()})"
+        )
+    else:
+        print("Database update: disabled")
             
     if len(args.wp) > 1:
         keyword_path = args.wp
@@ -5936,7 +5943,12 @@ if __name__ == "__main__":
     
     report_write(outfile, savefile)
     if dbConnection == 1:
-        report_to_db(savefile)
+        print("Database update: writing report data...")
+        db_result = report_to_db(savefile)
+        if db_result == 1:
+            print("Database update: completed")
+        else:
+            print("Database update: failed")
  #####################
  #
  #   https://www.booksr.co.kr
