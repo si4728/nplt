@@ -133,7 +133,7 @@ DB_CONFIG = {
     "port": int(os.getenv("NPLT_DB_PORT", "3306")),
     "database": os.getenv("NPLT_DB_NAME", "nplt"),
     "user": os.getenv("NPLT_DB_USER", "root"),
-    "password": os.getenv("NPLT_DB_PASSWORD", ""),
+    "password": os.getenv("NPLT_DB_PASSWORD", "P@ssw0rd"),
 }
 host_address = DB_CONFIG["host"]
 #host_address = 'localhost' #'203.250.81.142'
@@ -897,7 +897,7 @@ def get_db_cursor():
         cursor = connection.cursor()
         yield cursor
         connection.commit()
-    except mysql.connector.Error:
+    except Exception:
         if connection is not None:
             connection.rollback()
         raise
@@ -986,6 +986,8 @@ def _report_to_db(cursor, photo):
         sql_para = '%s, %s, %s,'
 
         last_id = get_lastnumber(cursor)
+        if last_id <= 0:
+            raise mysql.connector.Error("Failed to allocate next database id")
         tlst.append(last_id)
         tlst.append(input_url)
         tlst.append(dbConnection_id)
@@ -4661,6 +4663,9 @@ def get_header_value(headers, header_name):
             return str(value).strip()
     return ""
 
+def is_yes_option(value):
+    return str(value or "").strip().upper() in ("YES", "Y", "1", "TRUE")
+
 def collect_security_header_recommendations(headers):
     recommendations = []
     x_xss = get_header_value(headers, "X-XSS-Protection")
@@ -5041,7 +5046,7 @@ if __name__ == "__main__":
         rptLang = 2
     else:
         rptLang = 1    
-    if args.db.upper() in ["Yes", "Y", "1"]:
+    if is_yes_option(args.db):
         dbConnection = 1
     else:
         dbConnection = 0

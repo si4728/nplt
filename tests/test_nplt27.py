@@ -3,6 +3,7 @@ import sys
 import unittest
 from collections import Counter
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import nplt27
 
@@ -140,6 +141,38 @@ class Nplt27ImprovementTests(unittest.TestCase):
         }
         recommendations = nplt27.collect_security_header_recommendations(headers)
         self.assertEqual(recommendations, [])
+
+    def test_db_yes_option_accepts_yes_y_1_and_true(self):
+        for value in ("Yes", "YES", "yes", "Y", "1", "true", "TRUE"):
+            with self.subTest(value=value):
+                self.assertTrue(nplt27.is_yes_option(value))
+        for value in ("No", "N", "0", "", None):
+            with self.subTest(value=value):
+                self.assertFalse(nplt27.is_yes_option(value))
+
+    @patch("nplt27.mysql.connector.connect")
+    def test_db_cursor_rolls_back_on_generic_exception(self, connect):
+        connection = Mock()
+        cursor = Mock()
+        connection.cursor.return_value = cursor
+        connection.is_connected.return_value = True
+        connect.return_value = connection
+
+        with self.assertRaises(ValueError):
+            with nplt27.get_db_cursor():
+                raise ValueError("body failed")
+
+        connection.rollback.assert_called_once()
+        connection.commit.assert_not_called()
+        cursor.close.assert_called_once()
+        connection.close.assert_called_once()
+
+    @patch("nplt27.get_lastnumber", return_value=0)
+    def test_report_to_db_aborts_when_next_id_is_not_allocated(self, get_lastnumber):
+        cursor = Mock()
+        with self.assertRaises(nplt27.mysql.connector.Error):
+            nplt27._report_to_db(cursor, "unused.docx")
+        cursor.execute.assert_not_called()
 
 
 if __name__ == "__main__":
