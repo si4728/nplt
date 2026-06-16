@@ -2449,7 +2449,7 @@ def urlForm(tag, currentURL, flags):
         if not collect_path(urlparse(tag)[2]):
             if tag not in incollect_path_list:
                 incollect_path_list.add(tag)
-                print("In collect url 1465", tag, currentURL)
+                Debug_w(f"In collect url: {tag} {currentURL}")
             return 
             
     except:
@@ -3275,7 +3275,7 @@ def check_iframe_location(url):
     _, content = parse_html_response(page)
     Debug_w(content)
     #######################################################
-    print(content.find_all('frame'))
+    Debug_w(str(content.find_all('frame')))
     for frameset in content.find_all('frame'):
         tag = frameset.get("src")   
         if tag=="" or tag == None:  ## include or None  2020.2.2
@@ -3307,7 +3307,7 @@ def check_iframe_location(url):
     #########################################
     for slink in content.find_all("script"):
         temp= slink.text
-        print("*********", temp)
+        Debug_w(f"script redirect check: {temp[:300]}")
         x = temp.find("window.location.replace")
         if x > 0:
             temp = temp[x+23:]
@@ -3351,8 +3351,8 @@ def handle_external_link(url, source_url):
     xUrl = get_domain(url)
     record_sns_link(url, source_url)
     if url.find("blog") > -1:
-        print(url, "    ", xUrl)
-    print("skip other domain: ", url, xUrl, baseUrl, get_domain(baseUrl), get_domain(url))
+        Debug_w(f"{url} {xUrl}")
+    Debug_w(f"skip other domain: {url} {xUrl} {baseUrl} {get_domain(baseUrl)} {get_domain(url)}")
     return True
 
 def scanWeb(url, Purl):
@@ -3365,7 +3365,7 @@ def scanWeb(url, Purl):
     global font_color_count
 
     if "index" in url:
-        print("urlurlurl:", url)
+        Debug_w(f"urlurlurl: {url}")
 
     if url is None:
         return
@@ -5138,8 +5138,7 @@ if __name__ == "__main__":
     #     npltIndex=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
     npltIndex=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
     #npltIndex = getStandardIndex()   #### 2021.7.19
-    for x in npltIndex:
-        print(x, npltIndex[0])
+    Debug_w(f"npltIndex: {npltIndex}")
 
     head_tableX = getheadInformation(url)
     print(head_tableX)
