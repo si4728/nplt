@@ -178,6 +178,57 @@ class Nplt27ImprovementTests(unittest.TestCase):
     def test_db_connection_check_message_uses_next_id(self, get_lastnumber):
         self.assertEqual(nplt27.get_lastnumber(), 123)
 
+    def test_adapt_domain_registration_info_maps_nplt_whois_result(self):
+        result = nplt27.adapt_domain_registration_info(
+            {
+                "success": True,
+                "domain": "example.com",
+                "registrar": "Example Registrar",
+                "creation_date": "2020-01-01T00:00:00Z",
+                "updated_date": "2025-01-01T00:00:00Z",
+                "expiration_date": "2030-01-01T00:00:00Z",
+                "name_servers": ["ns1.example.com", "ns2.example.com"],
+                "status": ["active"],
+                "source_priority": ["rdap", "whois.com"],
+                "registrant": {"organization": "Example Inc."},
+            }
+        )
+
+        self.assertEqual(result["Domain_Name"], "example.com")
+        self.assertEqual(result["Registrar"], "Example Registrar")
+        self.assertEqual(result["Creation_Date"], "2020-01-01T00:00:00Z")
+        self.assertEqual(result["Updated_Date"], "2025-01-01T00:00:00Z")
+        self.assertEqual(result["Expiration_Date"], "2030-01-01T00:00:00Z")
+        self.assertEqual(result["Name_Server"], ["ns1.example.com", "ns2.example.com"])
+        self.assertEqual(result["Status"], "active")
+        self.assertEqual(result["Lookup_Source"], "rdap, whois.com")
+        self.assertEqual(result["Agency"], "Example Inc.")
+        self.assertIsInstance(result["NoDRfexpire"], int)
+
+    @patch("nplt27.progress_make")
+    @patch("nplt27.nplt_whois.get_domain_registration_info")
+    def test_getdomain_information_uses_nplt_whois_module(self, lookup, progress_make):
+        lookup.return_value = {
+            "success": True,
+            "domain": "example.com",
+            "registrar": "Example Registrar",
+            "name_servers": ["ns1.example.com"],
+            "source_priority": ["rdap"],
+        }
+
+        result = nplt27.getdomainInformation("http://example.com")
+
+        lookup.assert_called_once_with(
+            "http://example.com",
+            use_whois_com_fallback=True,
+            include_raw=False,
+            timeout=15,
+        )
+        self.assertEqual(result["Domain_Name"], "example.com")
+        self.assertEqual(result["Registrar"], "Example Registrar")
+        self.assertEqual(result["Name_Server"], ["ns1.example.com"])
+        progress_make.assert_any_call(1, "domain name is ", "example.com")
+
 
 if __name__ == "__main__":
     unittest.main()

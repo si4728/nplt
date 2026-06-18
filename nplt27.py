@@ -94,7 +94,7 @@ import numpy as np
 import cv2
 from sklearn.cluster import KMeans
 import nplt_forbiddenword
-import nplt_whois2
+import nplt_whois
 
 #mMeCab = MeCab.Tagger()     ### 한글형태 분석  2019/9/21
 
@@ -4474,9 +4474,102 @@ def page_Analisys(plist):
     
     return pageAnalisys
 
+def format_domain_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value if item)
+    if isinstance(value, dict):
+        values = [str(item) for item in value.values() if item]
+        return ", ".join(values)
+    return str(value)
+
+
+def parse_domain_date(value):
+    if not value:
+        return None
+    text = str(value).strip()
+    text = text.replace("Z", "+00:00")
+    formats = (
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y.%m.%d",
+        "%Y/%m/%d",
+    )
+    for date_format in formats:
+        try:
+            parsed = datetime.strptime(text, date_format)
+            return parsed.date()
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(text).date()
+    except ValueError:
+        return None
+
+
+def get_days_until_domain_expiration(expiration_date):
+    parsed_date = parse_domain_date(expiration_date)
+    if parsed_date is None:
+        return None
+    return (parsed_date - datetime.now().date()).days
+
+
+def adapt_domain_registration_info(info):
+    if not isinstance(info, dict):
+        return {"Lookup_Error": "invalid domain registration response"}
+
+    adapted = {}
+    domain = info.get("domain")
+    if domain:
+        adapted["Domain_Name"] = format_domain_value(domain)
+
+    registrar = info.get("registrar")
+    if registrar:
+        adapted["Registrar"] = format_domain_value(registrar)
+
+    if info.get("creation_date"):
+        adapted["Creation_Date"] = format_domain_value(info.get("creation_date"))
+    if info.get("expiration_date"):
+        adapted["Expiration_Date"] = format_domain_value(info.get("expiration_date"))
+        days_to_expire = get_days_until_domain_expiration(info.get("expiration_date"))
+        if days_to_expire is not None:
+            adapted["NoDRfexpire"] = days_to_expire
+    if info.get("updated_date"):
+        adapted["Updated_Date"] = format_domain_value(info.get("updated_date"))
+    if info.get("name_servers"):
+        adapted["Name_Server"] = [
+            format_domain_value(name_server)
+            for name_server in info.get("name_servers", [])
+            if name_server
+        ]
+    if info.get("status"):
+        adapted["Status"] = format_domain_value(info.get("status"))
+    if info.get("source_priority"):
+        adapted["Lookup_Source"] = format_domain_value(info.get("source_priority"))
+
+    registrant = info.get("registrant") or {}
+    registrant_org = registrant.get("organization") if isinstance(registrant, dict) else None
+    if registrant_org:
+        adapted["Agency"] = format_domain_value(registrant_org)
+
+    if not info.get("success") and info.get("error"):
+        adapted["Lookup_Error"] = format_domain_value(info.get("error"))
+
+    return adapted
+
+
 def getdomainInformation(url):
     try:
-        w = nplt_whois2.nplt_whois(url)
+        domain_info = nplt_whois.get_domain_registration_info(
+            url,
+            use_whois_com_fallback=True,
+            include_raw=False,
+            timeout=15,
+        )
+        w = adapt_domain_registration_info(domain_info)
 
         if "Domain_Name" in w:
             progress_make(1, "domain name is ", w["Domain_Name"])
