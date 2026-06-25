@@ -5,20 +5,66 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
+
+
+COMMON_SUBDOMAIN_PREFIXES = {"www", "m", "mobile"}
+KR_SECOND_LEVEL_SUFFIXES = {
+    "ac.kr",
+    "co.kr",
+    "go.kr",
+    "ne.kr",
+    "or.kr",
+    "pe.kr",
+    "re.kr",
+    "seoul.kr",
+    "busan.kr",
+    "daegu.kr",
+    "incheon.kr",
+    "gwangju.kr",
+    "daejeon.kr",
+    "ulsan.kr",
+    "gyeonggi.kr",
+    "gangwon.kr",
+    "chungbuk.kr",
+    "chungnam.kr",
+    "jeonbuk.kr",
+    "jeonnam.kr",
+    "gyeongbuk.kr",
+    "gyeongnam.kr",
+    "jeju.kr",
+}
+DNS_API_URL = "https://dns.google/resolve"
 
 
 def normalize_domain(domain: str) -> str:
     """
     https://www.whois.com/whois/hd.com 또는 hd.com 입력 모두 처리
     """
-    domain = domain.strip().lower()
-
-    domain = re.sub(r"^https?://", "", domain)
+    domain = (domain or "").strip().lower()
     domain = domain.replace("www.whois.com/whois/", "")
-    domain = domain.split("/")[0]
-    domain = domain.strip()
 
-    return domain
+    if "://" in domain:
+        domain = urlparse(domain).hostname or ""
+    else:
+        domain = domain.split("/", 1)[0]
+        domain = domain.split(":", 1)[0]
+
+    domain = domain.strip().strip(".")
+    labels = [label for label in domain.split(".") if label]
+    while len(labels) > 2 and labels[0] in COMMON_SUBDOMAIN_PREFIXES:
+        labels.pop(0)
+
+    if len(labels) >= 3:
+        suffix = ".".join(labels[-2:])
+        suffix3 = ".".join(labels[-3:])
+        if suffix in KR_SECOND_LEVEL_SUFFIXES:
+            return suffix3
+
+    if len(labels) > 2 and labels[-1] != "kr":
+        return ".".join(labels[-2:])
+
+    return ".".join(labels)
 
 
 def pick_event(events: List[Dict[str, Any]], keywords: List[str]) -> Optional[str]:
@@ -289,6 +335,47 @@ def fetch_whois_com(domain: str, timeout: int = 15) -> Dict[str, Any]:
     return parsed
 
 
+def normalize_nameservers(value: Any) -> List[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        values = value.replace(",", " ").split()
+    elif isinstance(value, dict):
+        values = list(value.values())
+    else:
+        values = value
+    return sorted(
+        {
+            str(item).strip().lower().rstrip(".")
+            for item in values
+            if str(item).strip()
+        }
+    )
+
+
+def query_dns_nameservers(
+    domain: str,
+    timeout: int = 15,
+    session: Optional[requests.Session] = None,
+) -> List[str]:
+    client = session or requests.Session()
+    response = client.get(
+        DNS_API_URL,
+        params={"name": domain, "type": "NS"},
+        headers={"Accept": "application/dns-json"},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    return normalize_nameservers(
+        [
+            answer.get("data", "")
+            for answer in payload.get("Answer", [])
+            if answer.get("type") == 2 and answer.get("data")
+        ]
+    )
+
+
 def merge_domain_info(rdap_info: Dict[str, Any], whois_info: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
     RDAP 결과를 우선 사용하고, 부족한 항목은 whois.com 결과로 보완
@@ -332,6 +419,7 @@ def merge_domain_info(rdap_info: Dict[str, Any], whois_info: Optional[Dict[str, 
 def get_domain_registration_info(
     domain_or_url: str,
     use_whois_com_fallback: bool = True,
+    use_dns_fallback: bool = True,
     include_raw: bool = False,
     timeout: int = 15,
 ) -> Dict[str, Any]:
@@ -410,6 +498,23 @@ def get_domain_registration_info(
             "collected_at": datetime.now().isoformat(timespec="seconds"),
         }
 
+    if use_dns_fallback and not result.get("name_servers"):
+        try:
+            nameservers = query_dns_nameservers(domain, timeout=timeout)
+            if nameservers:
+                result["name_servers"] = nameservers
+                result["success"] = True
+                source_priority = result.get("source_priority") or []
+                if "dns" not in source_priority:
+                    result["source_priority"] = source_priority + ["dns"]
+        except Exception as exc:
+            if not result.get("error"):
+                result["error"] = {}
+            if isinstance(result["error"], dict):
+                result["error"]["dns"] = str(exc)
+            else:
+                result["error"] = {"lookup": result["error"], "dns": str(exc)}
+
     if include_raw:
         result["raw"] = {
             "rdap": rdap_info,
@@ -438,6 +543,11 @@ if __name__ == "__main__":
         help="Include raw RDAP and whois.com responses in the output.",
     )
     parser.add_argument(
+        "--no-dns-fallback",
+        action="store_true",
+        help="Skip DNS NS-record fallback lookup.",
+    )
+    parser.add_argument(
         "--timeout",
         type=int,
         default=15,
@@ -448,6 +558,7 @@ if __name__ == "__main__":
     info = get_domain_registration_info(
         args.domain,
         use_whois_com_fallback=not args.no_whois_com_fallback,
+        use_dns_fallback=not args.no_dns_fallback,
         include_raw=args.include_raw,
         timeout=args.timeout,
     )
