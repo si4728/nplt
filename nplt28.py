@@ -50,6 +50,7 @@ import sys
 import tempfile
 import time
 import unicodedata
+import copy
 from datetime import datetime
 from pathlib import Path
 import urllib.error
@@ -95,6 +96,11 @@ import cv2
 from sklearn.cluster import KMeans
 import nplt_forbiddenword
 import nplt_whois
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 #mMeCab = MeCab.Tagger()     ### 한글형태 분석  2019/9/21
 
@@ -757,6 +763,7 @@ def merge_dicts_as_tuples(dict_a, dict_b):
 
 
 def extract_text(content):
+    content = copy.copy(content)
     # 모든 <script> 태그 제거
     for script in content.find_all("script"):
         script.decompose()  # 태그 제거
@@ -5295,13 +5302,14 @@ if __name__ == "__main__":
                 else:
                     if 'http' in xurl:
                         url = xurl
-                        baseUrl=xurl
+                        baseUrl = urlparse(xurl).netloc
                     else:
                         if baseUrl[-1]!="/" and xurl[0]!="/":
                             url = baseUrl + "/" + xurl
                         else:
                             url = baseUrl + xurl
                 print(url)
+                http_https = getHttp_Https(url)
     if jump_url == 0:
         xUrl = check_iframe_location(url)
         if get_domain(baseUrl) in xUrl:
@@ -5328,6 +5336,7 @@ if __name__ == "__main__":
     FaviconFile = ""
     try:
         if len(FaviconUrl) > 5:
+            FaviconUrl = formatHTTP(FaviconUrl)
             FaviconFile = save_Favicon(FaviconUrl)
             print(FaviconUrl,"<<<<<")
             add_favicon_report(FaviconUrl, FaviconFile)
