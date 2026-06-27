@@ -50,6 +50,7 @@ import sys
 import tempfile
 import time
 import unicodedata
+import copy
 from datetime import datetime
 from pathlib import Path
 import urllib.error
@@ -95,6 +96,11 @@ import cv2
 from sklearn.cluster import KMeans
 import nplt_forbiddenword
 import nplt_whois2
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 def ensure_nltk_data():
@@ -154,19 +160,11 @@ def ensure_output_directories():
         directory.mkdir(parents=True, exist_ok=True)
 
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 3306,
-    "user": "root",
-    "password": os.getenv("NPLT_DB_PASSWORD", "P@ssw0rd!@#$"),
-    "database": "nplt",
-}
-
-DB_CONFIG = {
-    "host": "218.146.225.166",
-    "port": 20004,
-    "user": "root",
-    "password": os.getenv("NPLT_DB_PASSWORD", "P@ssw0rd!@#$"),
-    "database": "nplt",
+    "host": os.getenv("NPLT_DB_HOST", "218.146.225.166"),
+    "port": int(os.getenv("NPLT_DB_PORT", "20004")),
+    "database": os.getenv("NPLT_DB_NAME", "nplt"),
+    "user": os.getenv("NPLT_DB_USER", "root"),
+    "password": "P@ssw0rd!@#$",
 }
 host_address = DB_CONFIG["host"]
 #host_address = 'localhost' #'203.250.81.142'
@@ -814,6 +812,7 @@ def merge_dicts_as_tuples(dict_a, dict_b):
 
 
 def extract_text(content):
+    content = copy.copy(content)
     # 모든 <script> 태그 제거
     for script in content.find_all("script"):
         script.decompose()  # 태그 제거
@@ -2737,7 +2736,7 @@ def getheadInformation(url):
         rhead = HTTP_SESSION.head(
             url, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
         )
-        print(rhead)
+        Debug_w(str(rhead))
         ##rhead.status_code == 307:
         #print("++++++++",rhead,type(rhead))
         #return(rhead.headers)    
@@ -3777,7 +3776,7 @@ def scanWeb(url, Purl):
     #print("(0)",content)
     for slink in content.find_all("script"):
         #extract_function(str(slink), url)
-        print("2746.&&&&&&&&&&&&&&&&&&&&&&", slink)
+        Debug_w(f"script tag: {str(slink)[:300]}")
         extract_script_file(slink, url)
         str_slink=str(slink)
         if ".load" in str_slink:  ## 2021.1.24
@@ -3785,12 +3784,12 @@ def scanWeb(url, Purl):
             for temp_list in html_temp_list:
                 if " " in temp_list:
                     continue
-                print("2160>>>>>>>>>>>>>>>>>>>>>>", temp_list)
+                Debug_w(f"load target: {temp_list}")
                 tag = urlForm(temp_list, url, 0)
                 if tag is not None:
                     addgraphNode(tag,url)
                     ##scanWeb(tag, url)
-                    print("2149", tag, url)
+                    Debug_w(f"load link: {tag} {url}")
                     addScanList(tag,1,url,227)
     Debug_w(url + " end of findall-script")
     #print("1794", type(content))
@@ -3926,7 +3925,7 @@ def scanWeb(url, Purl):
                 )
           
     scriptCount = scriptCount + len(content.find_all('script'))
-    styleCount = styleCount + len(content.find_all('<style'))
+    styleCount = styleCount + len(content.find_all('style'))
 
     Debug_w("Begin html_adjust step")
     #######################################################
@@ -5688,13 +5687,14 @@ if __name__ == "__main__":
                 else:
                     if 'http' in xurl:
                         url = xurl
-                        baseUrl=xurl
+                        baseUrl = urlparse(xurl).netloc
                     else:
                         if baseUrl[-1]!="/" and xurl[0]!="/":
                             url = baseUrl + "/" + xurl
                         else:
                             url = baseUrl + xurl
                 print(url)
+                http_https = getHttp_Https(url)
     if jump_url == 0:
         xUrl = check_iframe_location(url)
         if get_domain(baseUrl) in xUrl:
@@ -5721,6 +5721,7 @@ if __name__ == "__main__":
     FaviconFile = ""
     try:
         if len(FaviconUrl) > 5:
+            FaviconUrl = formatHTTP(FaviconUrl)
             FaviconFile = save_Favicon(FaviconUrl)
             print(FaviconUrl,"<<<<<")
             add_favicon_report(FaviconUrl, FaviconFile)
