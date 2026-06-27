@@ -2731,7 +2731,7 @@ def urlForm(tag, currentURL, flags):
      ###2024.07.30
     ### http://www.energy-news.co.kr) ,  http://www.iso.org)를 
     if ")" in returl:
-        returl = slice_before_character(returl, ")")
+        returl = trim_extracted_url(returl)
         if ";" in returl:
             return None
 
