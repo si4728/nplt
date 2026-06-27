@@ -3262,30 +3262,104 @@ def getsitemap2Information(url):
     root = normalize_site_root(url)
     return fetch_text(urljoin(root + "/", "sitemap.html"))
 
+def parse_google_result_count(text):
+    if not text:
+        return None
+    patterns = [
+        r"About\s+([0-9,]+)\s+results",
+        r"([0-9,]+)\s+results",
+        r"검색결과\s*약\s*([0-9,]+)개",
+        r"약\s*([0-9,]+)개",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            return int(match.group(1).replace(",", ""))
+    return None
+
+
+def google_custom_search(query):
+    api_key = os.getenv("GOOGLE_SEARCH_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    search_engine_id = (
+        os.getenv("GOOGLE_SEARCH_ENGINE_ID")
+        or os.getenv("GOOGLE_CSE_ID")
+        or os.getenv("GOOGLE_CX")
+    )
+    if not api_key or not search_engine_id:
+        return None
+    response = HTTP_SESSION.get(
+        "https://www.googleapis.com/customsearch/v1",
+        params={"key": api_key, "cx": search_engine_id, "q": query},
+        timeout=REQUEST_TIMEOUT,
+        verify=VERIFY_TLS,
+    )
+    response.raise_for_status()
+    data = response.json()
+    total_results = data.get("searchInformation", {}).get("totalResults")
+    if total_results is None:
+        return {
+            "status": "unavailable",
+            "count": None,
+            "message": "Google Custom Search response did not include totalResults",
+            "source": "Google Custom Search API",
+        }
+    return {
+        "status": "ok",
+        "count": int(total_results),
+        "message": f"About {int(total_results):,} results",
+        "source": "Google Custom Search API",
+    }
+
+
 def googleSearch(query):
-#     requests.headers = {
-#     'Accept-Language':'en',
-#     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:57.0) Gecko/20100101 Firefox/57.0'
-# }
-    surl = 'https://www.google.com/search?q="' + query + '"&hl=en'
-    resultStats = "xx"
+    api_result = google_custom_search(query)
+    if api_result is not None:
+        return api_result
+
+    surl = "https://www.google.com/search"
     try:
         resp = HTTP_SESSION.get(
-            surl, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
+            surl,
+            params={"q": f'"{query}"', "hl": "en", "num": 10},
+            timeout=REQUEST_TIMEOUT,
+            verify=VERIFY_TLS,
+            headers={
+                "Accept-Language": "en-US,en;q=0.9",
+                "User-Agent": requests.headers["User-Agent"],
+            },
         )
+        resp.raise_for_status()
         _, content = parse_html_response(resp)
-        ##print(content)
-        ##s  =  content.find('div', {'id' : 'resultStats'})   ##About 74 results
-        s = str(content)
-        x1 = s.find("About")
-        x2 = s.find("results")
-        if x2 > x1 and (x2 - x1 < 35): 
-            resultStats = s[x1:x2+7]
+        result_stats = content.find(id="result-stats") or content.find(id="resultStats")
+        result_text = result_stats.get_text(" ", strip=True) if result_stats else content.get_text(" ", strip=True)
+        result_count = parse_google_result_count(result_text)
+        if result_count is not None:
+            return {
+                "status": "ok",
+                "count": result_count,
+                "message": f"About {result_count:,} results",
+                "source": "Google HTML",
+            }
+        lower_text = result_text.lower()
+        if "captcha" in lower_text or "unusual traffic" in lower_text:
+            reason = "Google blocked the automated request"
+        elif "consent" in lower_text:
+            reason = "Google consent page was returned"
         else:
-            resultStats = ""
-    except :
-        pass
-    return (resultStats)    
+            reason = "Google result count was not found in the response"
+        return {
+            "status": "unavailable",
+            "count": None,
+            "message": reason,
+            "source": "Google HTML",
+        }
+    except requests.RequestException as error:
+        return {
+            "status": "unavailable",
+            "count": None,
+            "message": f"Google search request failed: {error}",
+            "source": "Google HTML",
+        }
 
 
 def getaCompareSite(siteflag):    
@@ -6468,13 +6542,18 @@ if __name__ == "__main__":
     #######################################################
     progress_make(2, MessageList[55][rptLang], "")
     gr = googleSearch(baseUrl)
-    progress_make(1, gr, "")
-    if ' ' in gr:
-        gr_cnt = gr.split(' ')[1]
+    if gr["status"] == "ok":
+        progress_make(1, gr["message"], f"({gr['source']})")
+        gr_cnt = gr["count"]
+        improved_progress_make(0, 55, gr_cnt)
+        if npltIndex[4] and int(npltIndex[4]) > 0:
+            progress_make(1, MessageList[79][rptLang], npltIndex[4])
+        else:
+            progress_make(1, "Google nplt Index baseline: ", "not configured")
     else:
-        gr_cnt = 0
-    improved_progress_make(0, 55, gr_cnt) 
-    progress_make(1, MessageList[79][rptLang],npltIndex[4])  
+        progress_make(1, "Google result count unavailable: ", gr["message"])
+        progress_make(1, "Google search source: ", gr["source"])
+        progress_make(1, "Google nplt Index: ", "not calculated")
     #######################################################
     # display for the information map tree
     #######################################################
