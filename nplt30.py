@@ -264,6 +264,9 @@ list_Search_string = []
 frameSetinformation = 0
 list_img_analysis = set()
 font_color_count = {}
+color_analysis_source_url = None
+font_color_source_url = None
+COLOR_ANALYSIS_MAX_IMAGES = 20
 input_url = "/"
 yearUrlskip = True
 year_list = [str(year) for year in range(2000, datetime.now().year + 1)]
@@ -867,6 +870,16 @@ def smallestANDpositive(*args):
     positive_vals = [val for val in args if val > 0]
     return min(positive_vals) if positive_vals else -1
 
+def trim_extracted_url(candidate):
+    if candidate is None:
+        return candidate
+    candidate = candidate.strip()
+    while candidate and candidate[-1] in ".,;":
+        candidate = candidate[:-1]
+    while candidate and candidate.endswith(")") and candidate.count("(") < candidate.count(")"):
+        candidate = candidate[:-1]
+    return candidate
+
 def extract_s_list(hstring):
     ss1 = "http://" 
     ss2 = "https://"
@@ -876,7 +889,6 @@ def extract_s_list(hstring):
     nnn = "&"
     mmm = ";"
     lll = "<"
-    rrr = ")"
     qqq = ">"
     kkk = "["
     start =1
@@ -887,19 +899,20 @@ def extract_s_list(hstring):
         x = hstring.find(ss1, start, end)
         if x < 0:
             x = hstring.find(ss2, start, end)
-        if x > 0:
+        if x >= 0:
             y = hstring.find(fff, x+1, end)
             z = hstring.find(zzz, x+1, end)
             u = hstring.find(bbb, x+1, end)
             n = hstring.find(nnn, x+1, end)
             m = hstring.find(mmm, x+1, end)
             l = hstring.find(lll, x+1, end)
-            r = hstring.find(rrr, x+1, end)
             q = hstring.find(qqq, x+1, end)
             k = hstring.find(kkk, x+1, end)        
-            y = smallestANDpositive(y,z,u,n,m,l,r,q,k)
+            y = smallestANDpositive(y,z,u,n,m,l,q,k)
+            if y < 0:
+                y = end
         
-        if x > 0 and y > 0:
+        if x >= 0 and y > 0:
             s_list.append([x,y])
         else:
             break
@@ -3484,6 +3497,8 @@ def scanWeb(url, Purl):
     global counter
     global RestricedRestCycleCount
     global font_color_count
+    global color_analysis_source_url
+    global font_color_source_url
 
     if "index" in url:
         Debug_w(f"urlurlurl: {url}")
@@ -3801,7 +3816,16 @@ def scanWeb(url, Purl):
     finally:
         pass
 
-    if counter == 1:
+    is_font_color_page = False
+    if font_color_source_url is None and (
+        content.find("style") is not None
+        or content.find(style=True) is not None
+        or content.find("link", rel=True, href=True) is not None
+    ):
+        font_color_source_url = url
+        is_font_color_page = True
+
+    if is_font_color_page:
         first_page_css = "\n".join(
             style.get_text(" ", strip=True)
             for style in content.find_all("style")
@@ -3849,6 +3873,16 @@ def scanWeb(url, Purl):
     #######################################################
     #print(content)
     #print(html_string)
+    collect_color_images = False
+    if (
+        webPageColorAnalysis == True
+        and color_analysis_source_url is None
+        and content.find("img") is not None
+    ):
+        color_analysis_source_url = url
+        collect_color_images = True
+    elif color_analysis_source_url == url:
+        collect_color_images = True
 
     global cssCount
     global cssCount2
@@ -3897,7 +3931,7 @@ def scanWeb(url, Purl):
         try:            
             if tag[0].upper()=="STYLESHEET":
                 add_list_script(href, url, "css")
-                if counter == 1:
+                if is_font_color_page:
                     first_page_stylesheets.append(urljoin(url, href))
                 if "http" in href.lower():
                     if baseUrl not in href:
@@ -3914,7 +3948,7 @@ def scanWeb(url, Purl):
         except:
             print("56-error", frameset, "*****", tag, "*******", href, "*****", type(href))
 
-    if counter == 1:
+    if is_font_color_page:
         for stylesheet_url in first_page_stylesheets[:10]:
             stylesheet_text = fetch_text(stylesheet_url)
             if stylesheet_text:
@@ -4010,8 +4044,12 @@ def scanWeb(url, Purl):
                         srcExt = "*"
                 if srcExt != "*":
                     extion_count[srcExt] = extion_count.get(srcExt,0) + 1  
-                    if srcExt in ["jpg", "png"]:
-                        if webPageColorAnalysis == True and counter == 1:
+                    if srcExt in ["jpg", "png", "jpeg", "webp"]:
+                        if (
+                            webPageColorAnalysis == True
+                            and collect_color_images
+                            and len(list_img_analysis) < COLOR_ANALYSIS_MAX_IMAGES
+                        ):
                             #print (counter, src)
                             full_src = urlForm(src, url, 0)
                             full_src = formatHTTP(full_src)
@@ -4481,7 +4519,7 @@ def scanWeb(url, Purl):
     s_list = extract_s_list(html_string)
 
     for u,w in s_list:
-        tag = html_string[u:w]
+        tag = trim_extracted_url(html_string[u:w])
         # if "을" in tag or ";" in tag or ")" in tag:
         #     print(url, "2793+++++++", tag)
         #     sys.exit()
@@ -5397,10 +5435,106 @@ def report_write(outfile,graphfile):
     outfilename = DEFAULT_REPORT_PATH + outfile
     doc.save(outfilename)
 
+import math
+from statistics import median
+
+def auto_scale(dtext):
+    """
+    단어 빈도 dict(dtext)를 받아서
+    워드클라우드용으로 자동 스케일링된 dict를 반환한다.
+
+    사용 예:
+        auto_text = auto_scale(dtext)
+
+        wordcloud = WordCloud(
+            font_path=str(font_path),
+            background_color='white',
+            relative_scaling=1,
+            normalize_plurals=False
+        ).generate_from_frequencies(auto_text)
+    """
+
+    if not isinstance(dtext, dict):
+        raise TypeError("dtext는 {word: count} 형태의 dict여야 합니다.")
+
+    # 0보다 큰 숫자 값만 사용
+    clean_dtext = {
+        word: count
+        for word, count in dtext.items()
+        if isinstance(count, (int, float)) and count > 0
+    }
+
+    if not clean_dtext:
+        raise ValueError("유효한 빈도값이 없습니다. 0보다 큰 값이 필요합니다.")
+
+    values = list(clean_dtext.values())
+    sorted_counts = sorted(values, reverse=True)
+
+    max_count = sorted_counts[0]
+    min_count = sorted_counts[-1]
+    median_count = median(values)
+    total_count = sum(values)
+
+    if median_count == 0:
+        median_count = 1
+    if min_count <= 0:
+        min_count = 1
+
+    top1_ratio = sorted_counts[0] / total_count
+
+    if len(sorted_counts) >= 2:
+        top2_ratio = sum(sorted_counts[:2]) / total_count
+    else:
+        top2_ratio = top1_ratio
+
+    max_median_ratio = max_count / median_count
+    max_min_ratio = max_count / min_count
+
+    # 자동 스케일 결정
+    if top1_ratio >= 0.25 or max_median_ratio >= 20 or max_min_ratio >= 15:
+        scaled_dtext = {
+            word: math.log1p(count)
+            for word, count in clean_dtext.items()
+        }
+
+    elif top2_ratio >= 0.4 or max_median_ratio >= 10 or max_min_ratio >= 8:
+        scaled_dtext = {
+            word: count ** 0.5
+            for word, count in clean_dtext.items()
+        }
+
+    elif max_median_ratio >= 5 or max_min_ratio >= 5:
+        scaled_dtext = {
+            word: count ** 0.6
+            for word, count in clean_dtext.items()
+        }
+
+    elif max_median_ratio >= 3:
+        scaled_dtext = {
+            word: count ** 0.7
+            for word, count in clean_dtext.items()
+        }
+
+    else:
+        scaled_dtext = {
+            word: count ** 0.9
+            for word, count in clean_dtext.items()
+        }
+
+    return scaled_dtext
 
 def make_word_cloud(dtext, sfile):
     font_path = BASE_DIR / "fonts" / "NanumGothic.ttf"
-    wordcloud = WordCloud(font_path=str(font_path),background_color='white',relative_scaling=1,normalize_plurals=False).generate_from_frequencies(dtext)
+    auto_text = auto_scale(dtext)
+    wordcloud = WordCloud(
+        font_path=str(font_path),
+        background_color='white',
+        relative_scaling=0.45,
+        normalize_plurals=False,
+        collocations=False,
+        max_words=keyWordList,
+        prefer_horizontal=0.9,
+    ).generate_from_frequencies(auto_text)
                                                                                                     
     filename = "wc_" + sfile
 
@@ -6404,6 +6538,10 @@ if __name__ == "__main__":
     #######################################################
     if color_bar_path or dominant_color_path or font_color_path:
         progress_make(2, "Website Color Analysis", "")
+        if color_analysis_source_url:
+            progress_make(1, "Image color source page: ", color_analysis_source_url)
+        if font_color_source_url:
+            progress_make(1, "Font color source page: ", font_color_source_url)
         progress_make(1, "Analyzed image count: ", len(list_img_analysis))
         if dominant_color_path:
             progress_make(1, "Dominant color palette: ", "")
