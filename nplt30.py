@@ -2181,6 +2181,53 @@ def enhanced_remove_string(bb,pos):
             bb = enhanced_remove_string(bb,r1)
     return bb
 
+def is_valid_font_family_name(name):
+    if not name:
+        return False
+    lowered = name.lower()
+    invalid_markers = [
+        "<", ">", "=", "{", "}", ":", ",", "&", "href", "span", "div",
+        "br/", "onclick", "location.", "pageindex", "font-family",
+        "&amp", "http://", "https://",
+    ]
+    if any(marker in lowered for marker in invalid_markers):
+        return False
+    junk_words = {
+        "including", "powered", "vessel", "technology", "offers", "secured",
+        "unveiled", "project", "complete", "development", "hyundai is",
+        "according", "reactor", "container", "energy", "offshore",
+    }
+    if any(word in lowered for word in junk_words):
+        return False
+    if len(name) > 80:
+        return False
+    if len(name.split()) > 6:
+        return False
+    if re.search(r"[.!?]\s", name):
+        return False
+    return True
+
+
+def clean_font_family_name(name):
+    name = html.unescape(str(name)).strip().strip("'\"")
+    name = re.sub(r"\s*!important\s*$", "", name, flags=re.IGNORECASE).strip()
+    name = re.sub(r"\s+", " ", name)
+    return name
+
+
+def split_font_family_declaration(declaration):
+    fonts = set()
+    for font_name in re.findall(
+        r'"([^"]+)"|\'([^\']+)\'|([^,]+)',
+        declaration,
+    ):
+        name = next(value for value in font_name if value)
+        name = clean_font_family_name(name)
+        if is_valid_font_family_name(name):
+            fonts.add(name)
+    return fonts
+
+
 def parsing_fontlist(slink):
     text = str(slink)
     declarations = re.findall(
@@ -2215,13 +2262,20 @@ def parsing_fontlist(slink):
 
     fonts = set()
     for declaration in declarations + face_values:
-        for font_name in re.findall(
-            r'"([^"]+)"|\'([^\']+)\'|([^,]+)',
-            declaration,
-        ):
-            name = next(value for value in font_name if value).strip()
-            if name:
-                fonts.add(name)
+        fonts |= split_font_family_declaration(declaration)
+    return fonts
+
+
+def collect_font_families(content):
+    fonts = set()
+    for tag in content.find_all(style=True):
+        fonts |= parsing_fontlist(tag.get("style", ""))
+    for style in content.find_all("style"):
+        fonts |= parsing_fontlist(style.get_text(" ", strip=True))
+    for tag in content.find_all("font"):
+        face = tag.get("face")
+        if face:
+            fonts |= split_font_family_declaration(face)
     return fonts
 
 
@@ -2229,20 +2283,10 @@ def select_font(font_cccc):
     ignored = {"inherit", "initial", "revert", "revert-layer", "unset"}
     return sorted(
         {
-            re.sub(
-                r"\s*!important\s*$",
-                "",
-                str(font).strip().strip("'\""),
-                flags=re.IGNORECASE,
-            ).strip()
+            clean_font_family_name(font)
             for font in font_cccc
-            if re.sub(
-                r"\s*!important\s*$",
-                "",
-                str(font).strip().strip("'\""),
-                flags=re.IGNORECASE,
-            ).strip().lower()
-            not in ignored
+            if clean_font_family_name(font).lower() not in ignored
+            and is_valid_font_family_name(clean_font_family_name(font))
         },
         key=str.lower,
     )
@@ -3868,7 +3912,7 @@ def scanWeb(url, Purl):
     #######################################################
     Debug_w(url + " begin to parsing for font")
     global tmp_cccc
-    tmp_cccc = tmp_cccc | parsing_fontlist(html_string)
+    tmp_cccc = tmp_cccc | collect_font_families(content)
     Debug_w(url + " end of the font parcing procedure")
     #######################################################
     #print(content)
