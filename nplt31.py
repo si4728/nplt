@@ -4183,6 +4183,131 @@ def prepare_scan_url(url, parent_url):
     return url, parsed_url, scan_key_url
 
 
+def ensure_absolute_request_url(url):
+    if "http://" == url[:7].lower():
+        return url
+    if "https://" == url[:8].lower():
+        return url
+    return f'{http_https}://{url}'
+
+
+def normalize_head_redirect_url(location):
+    redirect_url = location.strip()
+    print(redirect_url)
+
+    if not redirect_url:
+        return None
+
+    if redirect_url.lower().startswith(("http://", "https://")):
+        return redirect_url
+    if redirect_url.startswith("//"):
+        return f"{http_https}:{redirect_url}"
+
+    base = ensure_absolute_request_url(baseUrl).rstrip("/") + "/"
+    return urljoin(base, redirect_url)
+
+
+def prepare_request_after_head(url):
+    try:
+        url = ensure_absolute_request_url(url)
+
+        validate_public_url(url)
+        if not robots_allows(url):
+            print("skip by robots.txt:", url)
+            return None
+
+        Debug_w("2427-requests.head" + url)
+        rhead = HTTP_SESSION.head(
+            url, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
+        )
+        if rhead.status_code in [302]:
+            if "Location" in rhead.headers:
+                redirect_url = normalize_head_redirect_url(rhead.headers["Location"])
+                if redirect_url is None:
+                    return None
+                if redirect_url in list_302:
+                    return None
+                list_302.add(redirect_url)
+                url = redirect_url
+                print(2237, "change url", url)
+        else:
+            if costSavingMode == True:
+                if skip_costsavingMode(rhead.headers):
+                    print("1 cs mode =", url)
+                    return None
+    except:
+        print("Unexpected error:", sys.exc_info()[0], sys.exc_info()[1])
+    return url
+
+
+def record_page_timing(url, contents_length, response_time):
+    ut = []
+    ut.append(url)
+    ut.append(contents_length)
+    ut.append(response_time)
+    urltimelist.append(ut)
+
+
+def fetch_scan_page(url, parent_url):
+    try:
+        Debug_w(url + " begin to read for head")
+
+        page = HTTP_SESSION.get(
+            url, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
+        )
+        page_text = decode_response_text(page)
+
+        if page.status_code in BROKEN_LINK_STATUS_CODES:
+            is_broken_link, verified_page = confirm_broken_link(url, page.status_code)
+            if not is_broken_link:
+                if verified_page is None:
+                    return None
+                page = verified_page
+                page_text = decode_response_text(page)
+            else:
+                bstr = url + " [" + str(page.status_code) + "] in " + parent_url
+                brokenLink.append(bstr)
+                return None
+
+        response_time = page.elapsed.total_seconds()
+        contents_length = len(page.content)
+
+        if skip_costsavingMode(page.headers):
+            print("2 cs mode =", url)
+            return None
+
+        Debug_w(url + " end of read for head")
+        record_page_timing(url, contents_length, response_time)
+        return page, page_text
+
+    except (http.client.IncompleteRead) as e:
+        print("Incomplete link %s" % url)
+        return None
+    except requests.exceptions.MissingSchema as err:
+        print("MissingSchema", err, url)
+        return None
+    except requests.exceptions.InvalidSchema as err:
+        print("InvalidSchema", err, url)
+        return None
+    except requests.exceptions.HTTPError as err:
+        print("Http Error:", err)
+        return None
+    except requests.exceptions.ConnectionError as err:
+        print("Error Connecting:", err)
+        return None
+    except requests.exceptions.Timeout as err:
+        print("Timeout Error:", err)
+        return None
+    except requests.exceptions.RequestException as err:
+        print(url, "OOps: Something Else 2304", err)
+        return None
+    except:
+        print("incomplete link %s" % url)
+        brokenLink.append(url)
+        print("Others Error:")
+        return None
+
+
 def legacy_scanWeb(url, Purl):
 
     global baseUrl
@@ -4238,8 +4363,6 @@ def legacy_scanWeb(url, Purl):
     if StopLine > 0 and StopLine < counter:
         sys.exit()
     ###########################################################
-    skip_Current_url=False
-    ###########################################################
     # calculation time reduce routine, 
     # if customer want full scan then remove it. 2019.7.24
     Debug_w("get_extion: "+url)
@@ -4250,139 +4373,16 @@ def legacy_scanWeb(url, Purl):
             if costSavingMode == True:
                 if skip_extion(ext_name) == True:      
                     print("skip ",url)
-                    skip_Current_url = True
                     return
     ###########################################################
-    try:        
-        if "http://" == url[:7].lower():
-            url = url
-        elif "https://" == url[:8].lower():
-            url = url
-        else:
-            #url = http_https + "://" + url   
-            url = f'{http_https}://{url}'  # 2022.1.12
+    url = prepare_request_after_head(url)
+    if url is None:
+        return
 
-        validate_public_url(url)
-        if not robots_allows(url):
-            print("skip by robots.txt:", url)
-            return
-
-        Debug_w("2427-requests.head"+url)
-        rhead = HTTP_SESSION.head(
-            url, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
-        )
-        if rhead.status_code in [302]:
-            if "Location" in rhead.headers:
-                purl = rhead.headers["Location"]    
-
-                print(purl)
-
-                if "http" not in purl:
-                    if purl[0]=='/':
-                        purl = f'{baseUrl}{purl}'
-                    else:
-                        purl = f'{baseUrl}/{purl}'
-                    if "http" not in purl:
-                        purl = f'{http_https}://{purl}'
-   
-                if purl in list_302:
-                    return
-                else:
-                    list_302.add(purl)
-                    url = purl
-                    print(2237, "change url", url)
-        else:
-            if costSavingMode == True:
-                if skip_costsavingMode(rhead.headers):    
-                    skip_Current_url = True
-                    print("1 cs mode =", url)
-                    return
-    except:
-         print("Unexpected error:", sys.exc_info()[0], sys.exc_info()[1])
-        #######################################################
-        #        if rhead.status_code in [302]:
-        #   print("302===>")
-        #   purl = rhead.headers["Location"]                    
-        #   print(purl)
-        #######################################################
-        # target(url) page read
-        #######################################################
-    try:
-        if skip_Current_url == True:
-            page = ""
-            url_response_time = -1
-            url_contents_length = -1
-        else:
-            Debug_w(url + " begin to read for head")
-
-            #'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:57.0) Gecko/20100101 Firefox/57.0'
-            page = HTTP_SESSION.get(
-                url, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
-            )
-            page_text = decode_response_text(page)
-            
-            if page.status_code in BROKEN_LINK_STATUS_CODES:
-                is_broken_link, verified_page = confirm_broken_link(url, page.status_code)
-                if not is_broken_link:
-                    if verified_page is None:
-                        return
-                    page = verified_page
-                    page_text = decode_response_text(page)
-                else:
-                    url_response_time = -1
-                    url_contents_length = -1
-                    bstr = url + " [" + str(page.status_code) + "] in " + Purl
-                    brokenLink.append(bstr)
-                    return
-            url_response_time = page.elapsed.total_seconds()
-            url_contents_length = len(page.content)
-            #print(page, page.content)
-
-            if skip_costsavingMode(page.headers):    
-                skip_Current_url = True
-                print("2 cs mode =", url)
-                return
-
-            Debug_w(url + " end of read for head")     
- 
-        #######################################################
-        # update performance data for each page
-        #######################################################        
-        ut = []
-        ut.append(url)
-        ut.append(url_contents_length)
-        ut.append(url_response_time)
-        urltimelist.append(ut)      
-
-    except (http.client.IncompleteRead) as e:
-        print("Incomplete link %s" % url)
+    page_result = fetch_scan_page(url, Purl)
+    if page_result is None:
         return
-    except requests.exceptions.MissingSchema as err:
-        print("MissingSchema",err,url)
-        return
-    except requests.exceptions.InvalidSchema as err:
-        print("InvalidSchema",err,url)
-        return
-    except requests.exceptions.RequestException as err:
-        print (url, "OOps: Something Else 2304",err)
-        return
-    except requests.exceptions.HTTPError as err:
-        print ("Http Error:",err)
-        return
-    except requests.exceptions.ConnectionError as err:
-        print ("Error Connecting:",err)
-        return
-    except requests.exceptions.Timeout as err:
-        print ("Timeout Error:",err)  
-        return
-    except requests.exceptions.RequestException as err:
-        print (url,"OOps: Something Else 2316",err)
-        return
-    except :
-        print("incomplete link %s" % url)    ##urllib3.exceptions.LocationParseError
-        brokenLink.append(url)
-        print ("Others Error:")  
-        return
+    page, page_text = page_result
 
     #html_string = str(page.content)  ##20241020
     #print(page.content)
@@ -4391,8 +4391,6 @@ def legacy_scanWeb(url, Purl):
    
     word_html_string = extract_text(content)
     Debug_w(url + " begin to read for body")
-    if skip_Current_url == True:
-        return
     # try:    ### 20241129 dupilicate code
     #     x = page.content
     #     content = bs(x, 'html.parser', from_encoding="utf-8")  ##//decode(“utf8”).iso-8859-1        
