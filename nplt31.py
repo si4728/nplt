@@ -338,70 +338,81 @@ class NpltConfig:
 @dataclass
 class NpltState:
     base_url: str = ""
+    base_url2: str = ""
     input_url: str = "/"
     http_https: str = "http"
-    counter: int = 0
+    redirection_level: int = 0
+    web_builder: str = "0"
     online_score: int = 0
+    robots_parser: object = None
+    respect_robots: bool = True
+    robots_text: object = None
+    robots_info: dict = field(
+        default_factory=lambda: {
+            "url": "",
+            "status": "not_checked",
+            "status_code": None,
+            "text": None,
+            "error": "",
+        }
+    )
+    counter: int = 0
     graph: object = field(default_factory=nx.Graph)
     broken_links: list = field(default_factory=list)
-    forbidden_list: list = field(default_factory=list)
     scan_web_list: list = field(default_factory=list)
     scan_web_set: set = field(default_factory=set)
     visit_link_dict: dict = field(default_factory=dict)
     visit_url_dict: dict = field(default_factory=dict)
     online_link: dict = field(default_factory=dict)
-    url_time_list: list = field(default_factory=list)
-    list_search_string: list = field(default_factory=list)
-    head_table: list = field(default_factory=list)
-    report_list: list = field(default_factory=list)
-    meta_list: list = field(default_factory=list)
-    img_list: list = field(default_factory=list)
-    img_list2: list = field(default_factory=list)
-    lang_list: list = field(default_factory=list)
-    list_title: list = field(default_factory=list)
-    list_function: list = field(default_factory=list)
-    list_script: list = field(default_factory=list)
-    list_sns: dict = field(default_factory=dict)
+    sns_counts: dict = field(default_factory=dict)
     sns_details: dict = field(default_factory=dict)
-    image_analysis_urls: set = field(default_factory=set)
-    font_color_count: dict = field(default_factory=dict)
-    color_analysis_source_url: str = None
-    font_color_source_url: str = None
-    list_html5_tag: dict = field(default_factory=dict)
-    list_domain: list = field(default_factory=list)
-    list_plugin: list = field(default_factory=list)
-    list_search: list = field(default_factory=list)
-    list_flash: list = field(default_factory=list)
-    list_para: set = field(default_factory=set)
-    meta_list_set: set = field(default_factory=set)
-    list_302: set = field(default_factory=set)
-    extion_count: dict = field(default_factory=dict)
-    word_count: dict = field(default_factory=dict)
-    incollect_path_list: set = field(default_factory=set)
-    esg_count: dict = field(default_factory=dict)
-    html_tag: dict = field(default_factory=dict)
-    start_tag: dict = field(default_factory=dict)
-    end_tag: dict = field(default_factory=dict)
-    add_favorite_set: set = field(default_factory=set)
-    list_record: list = field(default_factory=list)
-    list_page: list = field(default_factory=list)
-    list_header: list = field(default_factory=list)
-    frame_set_information: int = 0
-    web_builder: str = "0"
-    tmp_cccc: set = field(default_factory=set)
-    css_count: int = 0
-    css_count2: int = 0
-    script_count: int = 0
-    style_count: int = 0
-    add_favorite_count: int = 0
-    redirection_level: int = 0
+    url_time_list: list = field(default_factory=list)
     img_count: int = 0
     img_alt: int = 0
+    script_count: int = 0
+    style_count: int = 0
+    css_count: int = 0
+    css_count2: int = 0
     frame_count: int = 0
     iframe_count: int = 0
     anchor_count: int = 0
-    anchor_t_count: int = 0
+    anchor_text_count: int = 0
     favicon_url: str = "zz"
+    add_favorite_count: int = 0
+    add_favorite_set: set = field(default_factory=set)
+    extension_count: dict = field(default_factory=dict)
+    word_count: dict = field(default_factory=dict)
+    esg_count: dict = field(default_factory=dict)
+    title_list: list = field(default_factory=list)
+    script_list: list = field(default_factory=list)
+    domain_list: list = field(default_factory=list)
+    function_list: list = field(default_factory=list)
+    function_parameter_set: set = field(default_factory=set)
+    flash_list: list = field(default_factory=list)
+    plugin_list: list = field(default_factory=list)
+    search_results: list = field(default_factory=list)
+    report_list: list = field(default_factory=list)
+    record_list: list = field(default_factory=list)
+    page_list: list = field(default_factory=list)
+    header_list: list = field(default_factory=list)
+    meta_tag_set: set = field(default_factory=set)
+    redirect_url_set: set = field(default_factory=set)
+    incomplete_path_set: set = field(default_factory=set)
+    head_table: object = field(default_factory=dict)
+    sitemap_flag: bool = False
+    image_analysis_list: set = field(default_factory=set)
+    image_extension_list: list = field(default_factory=list)
+    external_image_extension_list: list = field(default_factory=list)
+    forbidden_list: list = field(default_factory=list)
+    meta_list: list = field(default_factory=list)
+    start_tag: dict = field(default_factory=dict)
+    end_tag: dict = field(default_factory=dict)
+    html5_tag_list: dict = field(default_factory=dict)
+    font_family_set: set = field(default_factory=set)
+    font_color_count: dict = field(default_factory=dict)
+    color_analysis_source_url: object = None
+    font_color_source_url: object = None
+    list_search_string: list = field(default_factory=list)
 
 
 class NpltScanner:
@@ -413,6 +424,7 @@ class NpltScanner:
         self.state.input_url = url
         adjusted_url = adjustUrl(url)
         self.state.base_url = urlparse(adjusted_url).netloc
+        self.state.base_url2 = ""
         self.state.http_https = getHttp_Https(adjusted_url)
         self.state.list_search_string = make_Search_string(self.config.search_string)
         return adjusted_url
@@ -420,8 +432,6 @@ class NpltScanner:
     def add_scan_list(self, t, f, u, source=None):
         global scanWebList, scanWebSet
 
-        if not t:
-            return
         if t[-1] == "?":
             t = t[:-1]
 
@@ -438,7 +448,6 @@ class NpltScanner:
 
         if tag is None:
             print("None=====")
-            return
 
         if tag not in self.state.graph:
             self.state.graph.add_node(tag)
@@ -451,130 +460,298 @@ class NpltScanner:
         visitLinkDict = self.state.visit_link_dict
 
     def sync_from_legacy_globals(self):
-        global input_url, baseUrl, http_https, counter, brokenLink, G
+        global input_url, baseUrl, baseUrl2, http_https, Redirection_level
+        global web_builder, online_score
+        global ROBOTS_PARSER, RESPECT_ROBOTS, ROBOTS_TEXT, ROBOTS_INFO
+        global counter, brokenLink, G
         global scanWebList, scanWebSet, visitLinkDict, visitUrlDict, onlineLink
+        global list_sns, sns_details
         global list_Search_string, urltimelist
-        global forbiddenList, head_table, report_list, meta_list, img_list, img_list2
-        global lang_list, list_title, list_function, list_script, list_sns, sns_details
-        global online_score, list_img_analysis, font_color_count
-        global color_analysis_source_url, font_color_source_url
-        global list_domain, list_plugin, list_search, list_flash, list_para
-        global metaListset, list_302, extion_count, word_count, incollect_path_list
-        global esg_count, html_tag, start_tag, end_tag, AddFavoriteSet
-        global list_record, list_page, list_header, frameSetinformation
-        global list_html5_tag, web_builder, tmp_cccc
-        global cssCount, cssCount2, scriptCount, styleCount, AddFavoriteCount
-        global Redirection_level, imgCount, imgAlt, frameCount, iframeCount
-        global anchorCount, anchorTCount, FaviconUrl
+        global imgCount, imgAlt, scriptCount, styleCount, cssCount, cssCount2
+        global frameCount, iframeCount, anchorCount, anchorTCount
+        global FaviconUrl, AddFavoriteCount, AddFavoriteSet
+        global extion_count, word_count, esg_count, list_title, list_flash, list_plugin
+        global list_script, list_domain, list_function, list_para
+        global report_list, list_record, list_page, list_header
+        global metaListset, list_302, incollect_path_list, head_table, siteMap_flag
+        global list_search, list_img_analysis, img_list, img_list2, forbiddenList
+        global meta_list, start_tag, end_tag, list_html5_tag, tmp_cccc
+        global font_color_count, color_analysis_source_url, font_color_source_url
 
         self.state.input_url = input_url
         self.state.base_url = baseUrl
+        self.state.base_url2 = baseUrl2
         self.state.http_https = http_https
-        self.state.counter = counter
+        self.state.redirection_level = Redirection_level
+        self.state.web_builder = web_builder
         self.state.online_score = online_score
+        self.state.robots_parser = ROBOTS_PARSER
+        self.state.respect_robots = RESPECT_ROBOTS
+        self.state.robots_text = ROBOTS_TEXT
+        self.state.robots_info = ROBOTS_INFO
+        self.state.counter = counter
         self.state.graph = G
         self.state.broken_links = brokenLink
-        self.state.forbidden_list = forbiddenList
         self.state.scan_web_list = scanWebList
         self.state.scan_web_set = scanWebSet
         self.state.visit_link_dict = visitLinkDict
         self.state.visit_url_dict = visitUrlDict
         self.state.online_link = onlineLink
-        self.state.url_time_list = urltimelist
-        self.state.list_search_string = list_Search_string
-        self.state.head_table = head_table
-        self.state.report_list = report_list
-        self.state.meta_list = meta_list
-        self.state.img_list = img_list
-        self.state.img_list2 = img_list2
-        self.state.lang_list = lang_list
-        self.state.list_title = list_title
-        self.state.list_function = list_function
-        self.state.list_script = list_script
-        self.state.list_sns = list_sns
+        self.state.sns_counts = list_sns
         self.state.sns_details = sns_details
-        self.state.image_analysis_urls = list_img_analysis
-        self.state.font_color_count = font_color_count
-        self.state.color_analysis_source_url = color_analysis_source_url
-        self.state.font_color_source_url = font_color_source_url
-        self.state.list_html5_tag = list_html5_tag
-        self.state.list_domain = list_domain
-        self.state.list_plugin = list_plugin
-        self.state.list_search = list_search
-        self.state.list_flash = list_flash
-        self.state.list_para = list_para
-        self.state.meta_list_set = metaListset
-        self.state.list_302 = list_302
-        self.state.extion_count = extion_count
-        self.state.word_count = word_count
-        self.state.incollect_path_list = incollect_path_list
-        self.state.esg_count = esg_count
-        self.state.html_tag = html_tag
-        self.state.start_tag = start_tag
-        self.state.end_tag = end_tag
-        self.state.add_favorite_set = AddFavoriteSet
-        self.state.list_record = list_record
-        self.state.list_page = list_page
-        self.state.list_header = list_header
-        self.state.frame_set_information = frameSetinformation
-        self.state.web_builder = web_builder
-        self.state.tmp_cccc = tmp_cccc
-        self.state.css_count = cssCount
-        self.state.css_count2 = cssCount2
-        self.state.script_count = scriptCount
-        self.state.style_count = styleCount
-        self.state.add_favorite_count = AddFavoriteCount
-        self.state.redirection_level = Redirection_level
+        self.state.url_time_list = urltimelist
         self.state.img_count = imgCount
         self.state.img_alt = imgAlt
+        self.state.script_count = scriptCount
+        self.state.style_count = styleCount
+        self.state.css_count = cssCount
+        self.state.css_count2 = cssCount2
         self.state.frame_count = frameCount
         self.state.iframe_count = iframeCount
         self.state.anchor_count = anchorCount
-        self.state.anchor_t_count = anchorTCount
+        self.state.anchor_text_count = anchorTCount
         self.state.favicon_url = FaviconUrl
+        self.state.add_favorite_count = AddFavoriteCount
+        self.state.add_favorite_set = AddFavoriteSet
+        self.state.extension_count = extion_count
+        self.state.word_count = word_count
+        self.state.esg_count = esg_count
+        self.state.title_list = list_title
+        self.state.script_list = list_script
+        self.state.domain_list = list_domain
+        self.state.function_list = list_function
+        self.state.function_parameter_set = list_para
+        self.state.flash_list = list_flash
+        self.state.plugin_list = list_plugin
+        self.state.search_results = list_search
+        self.state.report_list = report_list
+        self.state.record_list = list_record
+        self.state.page_list = list_page
+        self.state.header_list = list_header
+        self.state.meta_tag_set = metaListset
+        self.state.redirect_url_set = list_302
+        self.state.incomplete_path_set = incollect_path_list
+        self.state.head_table = head_table
+        self.state.sitemap_flag = siteMap_flag
+        self.state.image_analysis_list = list_img_analysis
+        self.state.image_extension_list = img_list
+        self.state.external_image_extension_list = img_list2
+        self.state.forbidden_list = forbiddenList
+        self.state.meta_list = meta_list
+        self.state.start_tag = start_tag
+        self.state.end_tag = end_tag
+        self.state.html5_tag_list = list_html5_tag
+        self.state.font_family_set = tmp_cccc
+        self.state.font_color_count = font_color_count
+        self.state.color_analysis_source_url = color_analysis_source_url
+        self.state.font_color_source_url = font_color_source_url
+        self.state.list_search_string = list_Search_string
 
-    def run(self, url):
-        self.sync_from_legacy_globals()
-        if self.config.max_pages <= 0:
-            print("max_pages must be greater than 0")
-            return
+    def record_sns_link(self, url, source_url=None):
+        global list_sns, sns_details
 
-        self.scan_web(url, url)
-        print("FFFF", len(self.state.scan_web_list))
-        while self.state.scan_web_list:
-            if self.state.counter >= self.config.max_pages:
-                print(f"max_pages reached: {self.config.max_pages}")
-                break
-            next_url, _, parent_url = self.state.scan_web_list.pop()
-            self.scan_web(next_url, parent_url)
+        platform = identify_sns_platform(url)
+        if not platform:
+            return None
+        link_type = classify_sns_url(url)
+        normalized_url = normalize_sns_url(url)
+        detail = self.state.sns_details.setdefault(
+            platform,
+            {
+                "urls": set(),
+                "pages": set(),
+                "types": {},
+                "representative_url": normalized_url,
+            },
+        )
+        detail["urls"].add(normalized_url)
+        if source_url:
+            detail["pages"].add(source_url)
+        detail["types"][link_type] = detail["types"].get(link_type, 0) + 1
+        if detail.get("representative_url") in ("", None):
+            detail["representative_url"] = normalized_url
+        self.state.sns_counts[platform] = len(detail["urls"])
 
-        self.apply_to_legacy_globals()
+        list_sns = self.state.sns_counts
+        sns_details = self.state.sns_details
+        return platform
+
+    def build_sns_report_rows(self):
+        rows = []
+        for platform, detail in sorted(
+            self.state.sns_details.items(),
+            key=lambda item: (len(item[1]["urls"]), item[0]),
+            reverse=True,
+        ):
+            types = ", ".join(
+                f"{name}:{count}"
+                for name, count in sorted(detail["types"].items())
+            )
+            rows.append(
+                [
+                    platform,
+                    types or "unknown",
+                    str(len(detail["pages"])),
+                    str(len(detail["urls"])),
+                    detail.get("representative_url", ""),
+                ]
+            )
+        if rows:
+            return rows
+        for platform, count in sorted(
+            self.state.sns_counts.items(), key=lambda item: (-item[1], item[0])
+        ):
+            rows.append([platform, "unknown", "", str(count), ""])
+        return rows
+
+    def multiple_url(self, addr):
+        base_url = self.state.base_url or baseUrl
+        qlist = addr.split("?")
+        if len(qlist) > 2:
+            if qlist[1] == qlist[2]:
+                print("Warning url ?: ", addr)
+                return True
+
+        x = addr.find("'")
+        if x > 0:
+            addr = addr[:x]
+        x = addr.find('"')
+        if x > 0:
+            addr = addr[:x]
+
+        try:
+            v_url = urlparse(addr)
+            v_path = v_url[2]
+        except:
+            return False
+
+        slist = v_path.split("/")
+        if len(slist) > 5:
+            sset = set()
+            for x in slist:
+                sset.add(x)
+            if len(sset) + 2 < len(slist):
+                print("Warring url /: ", addr, base_url)
+                return True
+        return False
+
+    def abnormal_url(self, url):
+        parts = url.split("?")
+        if len(parts) == 2:
+            if "LOGIN" in parts[0].upper():
+                if parts[1].find("&") == -1:
+                    return True
+        return False
+
+    def should_skip_scheme(self, url):
+        return (
+            url[:7] == "moovit:"
+            or url[:7] == "mailto:"
+            or url[:4] == "tel:"
+        )
+
+    def handle_external_link(self, url, source_url):
+        base_url = self.state.base_url or baseUrl
+        if relation_domain(url, base_url) != -1:
+            return False
+        xUrl = get_domain(url)
+        self.record_sns_link(url, source_url)
+        if url.find("blog") > -1:
+            Debug_w(f"{url} {xUrl}")
+        Debug_w(f"skip other domain: {url} {xUrl} {base_url} {get_domain(base_url)} {get_domain(url)}")
+        return True
+
+    def build_broken_link_verify_urls(self, url, status_code):
+        verify_urls = [url]
+        if status_code == 404:
+            parsed_url = urlparse(url)
+            if parsed_url.scheme == "http":
+                verify_urls.append(parsed_url._replace(scheme="https").geturl())
+            if parsed_url.path.lower().endswith("/index") and not parsed_url.query:
+                verify_urls.append(url.rstrip("/") + "/")
+        return list(dict.fromkeys(verify_urls))
+
+    def confirm_broken_link(self, url, status_code):
+        if status_code not in BROKEN_LINK_STATUS_CODES:
+            return False, None
+
+        retry_headers = {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        }
+        for verify_url in self.build_broken_link_verify_urls(url, status_code):
+            for retry_index in range(BROKEN_LINK_RETRY_COUNT):
+                if BROKEN_LINK_RETRY_DELAY > 0:
+                    time.sleep(BROKEN_LINK_RETRY_DELAY)
+                try:
+                    response = HTTP_SESSION.get(
+                        verify_url,
+                        timeout=BROKEN_LINK_VERIFY_TIMEOUT,
+                        verify=VERIFY_TLS,
+                        allow_redirects=True,
+                        headers=retry_headers,
+                    )
+                    if response.status_code not in BROKEN_LINK_STATUS_CODES:
+                        print(
+                            "Recovered link after retry:",
+                            url,
+                            "=>",
+                            verify_url,
+                            response.status_code,
+                        )
+                        return False, response
+                except requests.exceptions.Timeout:
+                    print("Broken link verification timed out; skip broken report:", verify_url)
+                    return False, None
+                except requests.exceptions.RequestException as error:
+                    print("Broken link verification failed:", verify_url, error)
+        return True, None
 
     def scan_web(self, url, parent_url):
-        self.apply_to_legacy_globals()
-        _scan_web_legacy(url, parent_url)
-        self.sync_from_legacy_globals()
+        global CURRENT_SCANNER
 
-    def apply_to_legacy_globals(self):
+        previous_scanner = CURRENT_SCANNER
+        CURRENT_SCANNER = self
+        try:
+            self.apply_to_legacy_globals()
+            result = legacy_scanWeb(url, parent_url)
+            self.sync_from_legacy_globals()
+            return result
+        finally:
+            CURRENT_SCANNER = previous_scanner
+
+    def run(self, url):
+        global counter, scanWebList, CURRENT_SCANNER
+
+        if not self.state.base_url:
+            url = self.prepare_target(url)
+
+        previous_scanner = CURRENT_SCANNER
+        CURRENT_SCANNER = self
+        try:
+            if self.config.max_pages <= 0:
+                print("max_pages must be greater than 0")
+                return
+
+            self.scan_web(url, url)
+            print("FFFF", len(scanWebList))
+            while scanWebList:
+                if counter >= self.config.max_pages:
+                    print(f"max_pages reached: {self.config.max_pages}")
+                    break
+                next_url, _, parent_url = scanWebList.pop()
+                self.scan_web(next_url, parent_url)
+
+            self.sync_from_legacy_globals()
+        finally:
+            CURRENT_SCANNER = previous_scanner
+
+    def apply_config_to_legacy_globals(self):
         global costSavingMode, fullTreeMode, webPageColorAnalysis, keyWordList
-        global MinLinkLimit, skipWordMode, caseSensitiveMode, http_https
+        global MinLinkLimit, skipWordMode, caseSensitiveMode
         global Debug_mode, Search_string, rptLang, forbiddenWordEnable
         global dbConnection, dbConnection_id, StopLine, yearUrlskip
-        global keyword_path, File_Download, input_url, baseUrl
-        global counter, brokenLink, scanWebList, scanWebSet, G
-        global visitLinkDict, visitUrlDict, onlineLink, list_Search_string, urltimelist
-        global forbiddenList, head_table, report_list, meta_list, img_list, img_list2
-        global lang_list, list_title, list_function, list_script, list_sns, sns_details
-        global online_score, list_img_analysis, font_color_count
-        global color_analysis_source_url, font_color_source_url
-        global list_domain, list_plugin, list_search, list_flash, list_para
-        global metaListset, list_302, extion_count, word_count, incollect_path_list
-        global esg_count, html_tag, start_tag, end_tag, AddFavoriteSet
-        global list_record, list_page, list_header, frameSetinformation
-        global list_html5_tag, web_builder, tmp_cccc
-        global cssCount, cssCount2, scriptCount, styleCount, AddFavoriteCount
-        global Redirection_level, imgCount, imgAlt, frameCount, iframeCount
-        global anchorCount, anchorTCount, FaviconUrl
+        global keyword_path, File_Download
 
         costSavingMode = self.config.cost_saving_mode
         fullTreeMode = self.config.full_tree_mode
@@ -594,71 +771,99 @@ class NpltScanner:
         keyword_path = self.config.keyword_path
         File_Download = self.config.file_download
 
+    def apply_to_legacy_globals(self):
+        global costSavingMode, fullTreeMode, webPageColorAnalysis, keyWordList
+        global MinLinkLimit, skipWordMode, caseSensitiveMode, http_https
+        global Debug_mode, Search_string, rptLang, forbiddenWordEnable
+        global dbConnection, dbConnection_id, StopLine, yearUrlskip
+        global keyword_path, File_Download, input_url, baseUrl, baseUrl2
+        global web_builder, online_score
+        global ROBOTS_PARSER, RESPECT_ROBOTS, ROBOTS_TEXT, ROBOTS_INFO
+        global counter, brokenLink, scanWebList, scanWebSet, G
+        global Redirection_level
+        global visitLinkDict, visitUrlDict, onlineLink, list_Search_string, urltimelist
+        global list_sns, sns_details
+        global imgCount, imgAlt, scriptCount, styleCount, cssCount, cssCount2
+        global frameCount, iframeCount, anchorCount, anchorTCount
+        global FaviconUrl, AddFavoriteCount, AddFavoriteSet
+        global extion_count, word_count, esg_count, list_title, list_flash, list_plugin
+        global list_script, list_domain, list_function, list_para
+        global report_list, list_record, list_page, list_header
+        global metaListset, list_302, incollect_path_list, head_table, siteMap_flag
+        global list_search, list_img_analysis, img_list, img_list2, forbiddenList
+        global meta_list, start_tag, end_tag, list_html5_tag, tmp_cccc
+        global font_color_count, color_analysis_source_url, font_color_source_url
+
+        self.apply_config_to_legacy_globals()
+
         input_url = self.state.input_url
         baseUrl = self.state.base_url
+        baseUrl2 = self.state.base_url2
         http_https = self.state.http_https
+        Redirection_level = self.state.redirection_level
+        web_builder = self.state.web_builder
+        online_score = self.state.online_score
+        ROBOTS_PARSER = self.state.robots_parser
+        RESPECT_ROBOTS = self.state.respect_robots
+        ROBOTS_TEXT = self.state.robots_text
+        ROBOTS_INFO = self.state.robots_info
         counter = self.state.counter
         G = self.state.graph
         brokenLink = self.state.broken_links
-        forbiddenList = self.state.forbidden_list
         scanWebList = self.state.scan_web_list
         scanWebSet = self.state.scan_web_set
         visitLinkDict = self.state.visit_link_dict
         visitUrlDict = self.state.visit_url_dict
         onlineLink = self.state.online_link
-        urltimelist = self.state.url_time_list
-        list_Search_string = self.state.list_search_string
-        head_table = self.state.head_table
-        report_list = self.state.report_list
-        meta_list = self.state.meta_list
-        img_list = self.state.img_list
-        img_list2 = self.state.img_list2
-        lang_list = self.state.lang_list
-        list_title = self.state.list_title
-        list_function = self.state.list_function
-        list_script = self.state.list_script
-        list_sns = self.state.list_sns
+        list_sns = self.state.sns_counts
         sns_details = self.state.sns_details
-        online_score = self.state.online_score
-        list_img_analysis = self.state.image_analysis_urls
-        font_color_count = self.state.font_color_count
-        color_analysis_source_url = self.state.color_analysis_source_url
-        font_color_source_url = self.state.font_color_source_url
-        list_html5_tag = self.state.list_html5_tag
-        list_domain = self.state.list_domain
-        list_plugin = self.state.list_plugin
-        list_search = self.state.list_search
-        list_flash = self.state.list_flash
-        list_para = self.state.list_para
-        metaListset = self.state.meta_list_set
-        list_302 = self.state.list_302
-        extion_count = self.state.extion_count
-        word_count = self.state.word_count
-        incollect_path_list = self.state.incollect_path_list
-        esg_count = self.state.esg_count
-        html_tag = self.state.html_tag
-        start_tag = self.state.start_tag
-        end_tag = self.state.end_tag
-        AddFavoriteSet = self.state.add_favorite_set
-        list_record = self.state.list_record
-        list_page = self.state.list_page
-        list_header = self.state.list_header
-        frameSetinformation = self.state.frame_set_information
-        web_builder = self.state.web_builder
-        tmp_cccc = self.state.tmp_cccc
-        cssCount = self.state.css_count
-        cssCount2 = self.state.css_count2
-        scriptCount = self.state.script_count
-        styleCount = self.state.style_count
-        AddFavoriteCount = self.state.add_favorite_count
-        Redirection_level = self.state.redirection_level
+        urltimelist = self.state.url_time_list
         imgCount = self.state.img_count
         imgAlt = self.state.img_alt
+        scriptCount = self.state.script_count
+        styleCount = self.state.style_count
+        cssCount = self.state.css_count
+        cssCount2 = self.state.css_count2
         frameCount = self.state.frame_count
         iframeCount = self.state.iframe_count
         anchorCount = self.state.anchor_count
-        anchorTCount = self.state.anchor_t_count
+        anchorTCount = self.state.anchor_text_count
         FaviconUrl = self.state.favicon_url
+        AddFavoriteCount = self.state.add_favorite_count
+        AddFavoriteSet = self.state.add_favorite_set
+        extion_count = self.state.extension_count
+        word_count = self.state.word_count
+        esg_count = self.state.esg_count
+        list_title = self.state.title_list
+        list_script = self.state.script_list
+        list_domain = self.state.domain_list
+        list_function = self.state.function_list
+        list_para = self.state.function_parameter_set
+        list_flash = self.state.flash_list
+        list_plugin = self.state.plugin_list
+        list_search = self.state.search_results
+        report_list = self.state.report_list
+        list_record = self.state.record_list
+        list_page = self.state.page_list
+        list_header = self.state.header_list
+        metaListset = self.state.meta_tag_set
+        list_302 = self.state.redirect_url_set
+        incollect_path_list = self.state.incomplete_path_set
+        head_table = self.state.head_table
+        siteMap_flag = self.state.sitemap_flag
+        list_img_analysis = self.state.image_analysis_list
+        img_list = self.state.image_extension_list
+        img_list2 = self.state.external_image_extension_list
+        forbiddenList = self.state.forbidden_list
+        meta_list = self.state.meta_list
+        start_tag = self.state.start_tag
+        end_tag = self.state.end_tag
+        list_html5_tag = self.state.html5_tag_list
+        tmp_cccc = self.state.font_family_set
+        font_color_count = self.state.font_color_count
+        color_analysis_source_url = self.state.color_analysis_source_url
+        font_color_source_url = self.state.font_color_source_url
+        list_Search_string = self.state.list_search_string
 
 CURRENT_SCANNER = None
 
@@ -780,10 +985,33 @@ def robots_status_message(info):
     return "robots.txt availability was not checked."
 
 
+def sync_robots_state_to_current_scanner():
+    if CURRENT_SCANNER is None:
+        return
+    CURRENT_SCANNER.state.robots_parser = ROBOTS_PARSER
+    CURRENT_SCANNER.state.respect_robots = RESPECT_ROBOTS
+    CURRENT_SCANNER.state.robots_text = ROBOTS_TEXT
+    CURRENT_SCANNER.state.robots_info = ROBOTS_INFO
+
+
 def configure_robots(start_url, respect=True):
     global ROBOTS_PARSER, ROBOTS_TEXT, ROBOTS_INFO, RESPECT_ROBOTS
     RESPECT_ROBOTS = respect
-    root = normalize_site_root(start_url)
+    try:
+        root = normalize_site_root(start_url)
+    except (ValueError, TypeError) as error:
+        ROBOTS_INFO = {
+            "url": "",
+            "status": "error",
+            "status_code": None,
+            "text": None,
+            "error": str(error),
+        }
+        ROBOTS_TEXT = None
+        parser = urllib.robotparser.RobotFileParser()
+        ROBOTS_PARSER = parser
+        sync_robots_state_to_current_scanner()
+        return parser
     robots_url = urljoin(root + "/", "robots.txt")
     ROBOTS_INFO = fetch_text_status(robots_url)
     ROBOTS_TEXT = ROBOTS_INFO.get("text")
@@ -791,12 +1019,17 @@ def configure_robots(start_url, respect=True):
     parser.set_url(robots_url)
     parser.parse((ROBOTS_TEXT or "").splitlines())
     ROBOTS_PARSER = parser
+    sync_robots_state_to_current_scanner()
     return parser
 
 
 def getrobotsInformation(url):
-    root = normalize_site_root(url)
-    result = fetch_text_status(urljoin(root + "/", "robots.txt"))
+    try:
+        root = normalize_site_root(url)
+        result = fetch_text_status(urljoin(root + "/", "robots.txt"))
+    except (ValueError, TypeError) as error:
+        Debug_w(f"robots.txt lookup failed: {url} {error}")
+        return None
     if result["status"] == "available":
         return result["text"]
     return None
@@ -1913,20 +2146,21 @@ def skip_costsavingMode(yy):
     return False
 
 def multiple_url(addr):
+    if CURRENT_SCANNER is not None:
+        return CURRENT_SCANNER.multiple_url(addr)
     qlist = addr.split("?")
     if len(qlist) > 2:
         if qlist[1] == qlist[2]:
             print("Warning url ?: ", addr)
             return True
-    
+
     x = addr.find("'")
     if x > 0:
         addr = addr[:x]
     x = addr.find('"')
     if x > 0:
         addr = addr[:x]
-    
-    #print("*********************", addr, "**************", len(addr))
+
     try:
         v_url = urlparse(addr)
         v_path = v_url[2]
@@ -1941,7 +2175,6 @@ def multiple_url(addr):
         if len(sset) + 2 < len(slist):
             print("Warring url /: ", addr, baseUrl)
             return True
-
     return False
 
 def cmp_domain(x,y):  ##cur_url , baseUrl
@@ -2129,6 +2362,9 @@ def normalize_sns_url(url):
     return normalized
 
 def record_sns_link(url, source_url=None):
+    if CURRENT_SCANNER is not None:
+        return CURRENT_SCANNER.record_sns_link(url, source_url)
+
     platform = identify_sns_platform(url)
     if not platform:
         return None
@@ -2153,6 +2389,9 @@ def record_sns_link(url, source_url=None):
     return platform
 
 def build_sns_report_rows():
+    if CURRENT_SCANNER is not None:
+        return CURRENT_SCANNER.build_sns_report_rows()
+
     rows = []
     for platform, detail in sorted(
         sns_details.items(),
@@ -3182,6 +3421,7 @@ def urlForm(tag, currentURL, flags):
 def getheadInformation(url):
     print(url)
     try:
+        validate_public_url(url)
         rhead = HTTP_SESSION.head(
             url, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
         )
@@ -3190,7 +3430,8 @@ def getheadInformation(url):
         #print("++++++++",rhead,type(rhead))
         #return(rhead.headers)    
         return(rhead)    
-    except:
+    except (requests.RequestException, ValueError) as error:
+        Debug_w(f"head lookup failed: {url} {error}")
         return(None)
 
 def identify_website_builder_legacy(soup):
@@ -3528,10 +3769,11 @@ def identify_website_builder(soup):
 def getipInformation(ip):
     urls = "http://ip-api.com/json/" + ip
     try:
-        rhead = HTTP_SESSION.get(urls, timeout=REQUEST_TIMEOUT)
+        rhead = HTTP_SESSION.get(urls, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS)
         rhead.raise_for_status()
         return rhead.text
-    except requests.RequestException:
+    except (requests.RequestException, ValueError) as error:
+        Debug_w(f"ip lookup failed: {ip} {error}")
         return ""
 
 def getMyip():
@@ -3542,20 +3784,32 @@ def getMyip():
         )
         response.raise_for_status()
         return response.text.strip()
-    except requests.RequestException:
+    except (requests.RequestException, ValueError) as error:
+        Debug_w(f"public ip lookup failed: {error}")
         return ""
 
 def getsitemapInformation(url):
-    root = normalize_site_root(url)
-    return fetch_text(urljoin(root + "/", "sitemap.xml"))
+    try:
+        root = normalize_site_root(url)
+        return fetch_text(urljoin(root + "/", "sitemap.xml"))
+    except (ValueError, TypeError) as error:
+        Debug_w(f"sitemap.xml lookup failed: {url} {error}")
+        return None
 
 def getsitemap2Information(url):
-    root = normalize_site_root(url)
-    return fetch_text(urljoin(root + "/", "sitemap.html"))
+    try:
+        root = normalize_site_root(url)
+        return fetch_text(urljoin(root + "/", "sitemap.html"))
+    except (ValueError, TypeError) as error:
+        Debug_w(f"sitemap.html lookup failed: {url} {error}")
+        return None
 
 
 def google_site_exists(domain, num=10):
-    url = f"https://www.google.com/search?q={domain}"
+    if not domain:
+        return 0
+    query = urllib.parse.quote_plus(str(domain))
+    url = f"https://www.google.com/search?q={query}"
 
     headers = {
         "User-Agent": (
@@ -3566,11 +3820,16 @@ def google_site_exists(domain, num=10):
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = HTTP_SESSION.get(
+            url,
+            headers=headers,
+            timeout=REQUEST_TIMEOUT,
+            verify=VERIFY_TLS,
+        )
         if response.status_code != 200:
             return 0
 
-        soup = BeautifulSoup(response.text, "html.parser")
+        soup = bs(response.text, "html.parser")
         for a in soup.find_all("a", href=True):
             href = a["href"]
 
@@ -3593,15 +3852,16 @@ def google_site_exists(domain, num=10):
 
         return 0
 
-    except requests.exceptions.RequestException:
+    except (requests.RequestException, ValueError, TypeError) as error:
+        Debug_w(f"google site lookup failed: {domain} {error}")
         return 0
 
 def getaCompareSite(siteflag):    
-    requests.headers = {
-    'Accept-Language':'en',
-    #'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:57.0) Gecko/20100101 Firefox/57.0'
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-}
+    headers = {
+        'Accept-Language':'en',
+        #'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:57.0) Gecko/20100101 Firefox/57.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
     url_response_time = -1
     url_contents_length = -1
 
@@ -3612,17 +3872,20 @@ def getaCompareSite(siteflag):
         urls = "https://www.naver.com"
     try:
         resp = HTTP_SESSION.get(
-            urls, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
+            urls, headers=headers, timeout=REQUEST_TIMEOUT, verify=VERIFY_TLS
         )
         url_response_time = resp.elapsed.total_seconds()
         url_contents_length = len(resp.content)
-    except:
+    except (requests.RequestException, ValueError) as error:
+        Debug_w(f"compare site lookup failed: {siteflag} {error}")
         url_response_time = -1
         url_contents_length = -1
 
     return (url_response_time, url_contents_length)
 
 def abnormal_url(u):
+    if CURRENT_SCANNER is not None:
+        return CURRENT_SCANNER.abnormal_url(u)
     s = u.split("?")
     if len(s)==2:
         if "LOGIN" in s[0].upper():
@@ -3665,7 +3928,6 @@ def addgraphNode(tag,url):
 
     if tag is None:
         print("None=====")
-        return
 
     if (tag in G) == False:
         G.add_node(tag)
@@ -3771,8 +4033,6 @@ def addScanList(t,f,u,s):
 
     global scanWebSet
     global scanWebList
-    if not t:
-        return
     if t[-1]=="?":
         t=t[:-1]
 
@@ -3783,6 +4043,8 @@ def addScanList(t,f,u,s):
         scanWebList.append([t,f,u])
 
 def should_skip_scheme(url):
+    if CURRENT_SCANNER is not None:
+        return CURRENT_SCANNER.should_skip_scheme(url)
     return (
         url[:7] == "moovit:"
         or url[:7] == "mailto:"
@@ -3790,6 +4052,8 @@ def should_skip_scheme(url):
     )
 
 def handle_external_link(url, source_url):
+    if CURRENT_SCANNER is not None:
+        return CURRENT_SCANNER.handle_external_link(url, source_url)
     if relation_domain(url, baseUrl) != -1:
         return False
     xUrl = get_domain(url)
@@ -3800,6 +4064,8 @@ def handle_external_link(url, source_url):
     return True
 
 def build_broken_link_verify_urls(url, status_code):
+    if CURRENT_SCANNER is not None:
+        return CURRENT_SCANNER.build_broken_link_verify_urls(url, status_code)
     verify_urls = [url]
     if status_code == 404:
         parsed_url = urlparse(url)
@@ -3810,6 +4076,8 @@ def build_broken_link_verify_urls(url, status_code):
     return list(dict.fromkeys(verify_urls))
 
 def confirm_broken_link(url, status_code):
+    if CURRENT_SCANNER is not None:
+        return CURRENT_SCANNER.confirm_broken_link(url, status_code)
     if status_code not in BROKEN_LINK_STATUS_CODES:
         return False, None
 
@@ -3848,12 +4116,77 @@ def confirm_broken_link(url, status_code):
 def scanWeb(url, Purl):
     if CURRENT_SCANNER is not None:
         return CURRENT_SCANNER.scan_web(url, Purl)
-    return _scan_web_legacy(url, Purl)
+    return legacy_scanWeb(url, Purl)
 
 
-def _scan_web_legacy(url, Purl):
+def should_skip_scan_url(url):
+    if url is None:
+        return True
+    if "index" in url:
+        Debug_w(f"urlurlurl: {url}")
+    if online_score > 500 and counter > 1000:
+        print("online_score exceed !")
+        return True
+    if should_skip_scheme(url):
+        return True
+    if multiple_url(url):
+        return True
+    if abnormal_url(url):
+        return True
+    return False
+
+
+def adjust_relative_scan_url(url, parent_url):
+    if url[:1] == ".":
+        adjusted_url = f'{modi_url(parent_url)}{url[1:]}'
+        print("00000", parent_url, adjusted_url)
+        return adjusted_url
+    if url[:1] == "/":
+        return f'{baseUrl}{url}'
+    return url
+
+
+def prepare_scan_url(url, parent_url):
+    if should_skip_scan_url(url):
+        return None
+
+    url = adjust_relative_scan_url(url, parent_url)
+
+    if yearUrlskip == True:
+        if url[-4:].isnumeric():
+            if url[-4:] not in year_list:
+                return None
+
+    s_url = ""
+    try:
+        url = urllib.parse.unquote(url)
+        parsed_url = urlparse(url)
+        if len(parsed_url[0]) < 2:
+            scan_key_url = f'http://{parsed_url[1]}{parsed_url[2]}'
+        else:
+            scan_key_url = f'{parsed_url[0]}://{parsed_url[1]}{parsed_url[2]}'
+
+        if online_score > 100:
+            s_url = parsed_url[2].split("/")
+            if len(s_url) > 4:
+                online_key = f'{str(s_url[1])}{str(s_url[2])}{str(s_url[3])}'
+                onlineLink[online_key] = onlineLink.get(online_key, 0) + 1
+                if onlineLink[online_key] > RestricedOnlineLinkCount:
+                    return None
+    except:
+        print("Unexpected error:", sys.exc_info()[0], url, s_url)
+        return None
+
+    if cmp_domain(parsed_url[1], baseUrl) < 2:
+        return None
+
+    return url, parsed_url, scan_key_url
+
+
+def legacy_scanWeb(url, Purl):
 
     global baseUrl
+    global baseUrl2
     global RestricedOnlineLinkCount
     global online_score
     global counter
@@ -3862,67 +4195,10 @@ def _scan_web_legacy(url, Purl):
     global color_analysis_source_url
     global font_color_source_url
 
-    if "index" in url:
-        Debug_w(f"urlurlurl: {url}")
-
-    if url is None:
+    prepared_url = prepare_scan_url(url, Purl)
+    if prepared_url is None:
         return
-    if online_score > 500 and counter> 1000:
-        print("online_score exceed !")
-        return
- 
-    if should_skip_scheme(url):
-        return
-
-    ## 2021.9.5 
-    if multiple_url(url):   
-        return        
-    
-    #2024.8.5
-    if abnormal_url(url):
-        return
-    
-    if url[:1]==".":
-        ##
-        #url = modi_url(Purl) + url[1:]   ## 2019.10.20
-        url = f'{modi_url(Purl)}{url[1:]}' ## 2022.01.12
-        print("00000", Purl, url)
-    elif url[:1]=="/":
-        #url = baseUrl + url
-        url = f'{baseUrl}{url}' ## 2022.01.12
-        
-    ##332021.5.2 check
-    if yearUrlskip == True:  ##isnumeric()  
-        if url[-4:].isnumeric():
-            if url[-4:] not in year_list:
-                return
-   
-    try:
-        url = urllib.parse.unquote(url)    
-        p_url = urlparse(url)
-        if len(p_url[0]) <2:
-            #v_url = "http://" + p_url[1] + p_url[2]
-            v_url = f'http://{p_url[1]}{p_url[2]}' ## 2022.01.12
-        else:
-            #v_url = p_url[0] + "://" + p_url[1] + p_url[2]
-            v_url = f'{p_url[0]}://{p_url[1]}{p_url[2]}' ## 2022.01.12
-
-        ### onl;ine path restricted 2022.2.6 
-        s_url=""
-        if online_score > 100:            
-            s_url = p_url[2].split("/")
-            if len(s_url) > 4:
-                #o_url = str(s_url[1]) + str(s_url[2]) + str(s_url[3]) 
-                o_url = f'{str(s_url[1])}{str(s_url[2])}{str(s_url[3])}'
-                onlineLink[o_url] = onlineLink.get(o_url,0) + 1
-                if onlineLink[o_url] > RestricedOnlineLinkCount:
-                    return
-    except:
-        print("Unexpected error:", sys.exc_info()[0], url, s_url)
-        return
-    
-    if cmp_domain(p_url[1], baseUrl) < 2:
-        return
+    url, p_url, v_url = prepared_url
     
     try:
         visitLinkDict[url] = visitLinkDict.get(url,0) + 1
@@ -5037,7 +5313,7 @@ def getdomainInformation(url):
         if "Lookup_Error" in w:
             progress_make(1, "lookup note is ", w["Lookup_Error"])
         return w
-    except (TypeError, ValueError, requests.RequestException) as error:
+    except Exception as error:
         progress_make(1, "domain lookup failed: ", str(error))
         return {"Lookup_Error": str(error)}
 
@@ -5710,6 +5986,8 @@ def main():
     global counter, brokenLink, scanWebList, scanWebSet
     global visitLinkDict, visitUrlDict, onlineLink, list_Search_string
     global list_img_analysis, FaviconUrl, CURRENT_SCANNER
+    global head_table, siteMap_flag
+    global font_color_count, color_analysis_source_url, font_color_source_url
 
     ensure_output_directories()
     parser = argparse.ArgumentParser()
@@ -5762,8 +6040,9 @@ def main():
 
     config = NpltConfig.from_args(args)
     scanner = NpltScanner(config)
-    CURRENT_SCANNER = scanner
-    scanner.apply_to_legacy_globals()
+    CURRENT_SCANNER = None
+
+    scanner.apply_config_to_legacy_globals()
 
     if dbConnection == 1:
         print(f"Database update: enabled (company id: {dbConnection_id})")
@@ -5817,6 +6096,7 @@ def main():
     #npltIndex = getStandardIndex()   #### 2021.7.19
     Debug_w(f"npltIndex: {npltIndex}")
 
+    head_table = {}
     head_tableX = getheadInformation(url)
     print(head_tableX)
     jump_url = 0
@@ -5832,7 +6112,11 @@ def main():
         if ":" in hostname:
             hostname = hostname.split(":")[0]
 
-        ip_address = socket.gethostbyname(hostname)
+        try:
+            ip_address = socket.gethostbyname(hostname)
+        except OSError as error:
+            ip_address = "."
+            Debug_w(f"host ip lookup failed: {hostname} {error}")
 
         #progress_make(1, MessageList[3][rptLang], baseUrl)
         improved_progress_make(1, 3, baseUrl)
@@ -5875,6 +6159,7 @@ def main():
     print("After  Url=", url, baseUrl)
 
     ######################################################
+    scanner.sync_from_legacy_globals()
     scanner.run(url)
     ######################################################
     end_time = time.time()   ## datetime.now()
