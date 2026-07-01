@@ -171,110 +171,108 @@ DB_CONFIG = {
 }
 host_address = DB_CONFIG["host"]
 #host_address = 'localhost' #'203.250.81.142'
-counter = 0#
-costSavingMode = True
-fullTreeMode = False
-webPageColorAnalysis = True
-keyWordList = 50
-MinLinkLimit = 5
-skipWordMode = True
-caseSensitiveMode = False
-http_https = "http"
-Debug_mode = False
-Search_string = ""
-rptLang = 2 ##  1= KR, 2=EN
-web_builder ="0"        # web builder tool def identify_website_builder
-RestricedRestCycleCount = 99  #//동일 url 이나 parameter 가 다른 경우 ex) bbs 호출 제한
-RestricedOnlineLinkCount = 49  # online salse site 인경우 동일 path 제한
-Redirection_level = 0
-forbiddenWordEnable = False
-
-siteMap_flag = False
-
-baseUrl2 =""
-baseUrl  = ""
-
-scanWebList = []
-scanWebSet = set()
-
-brokenLink = []
-forbiddenList = []
-imgCount = 0
-imgAlt = 0
-scriptCount = 0
-styleCount = 0
-cssCount = 0
-cssCount2 = 0
-
-
-frameCount = 0
-iframeCount = 0
-anchorCount = 0
-anchorTCount = 0
-FaviconUrl = "zz"
-dbConnection = 0
-dbConnection_id = 0
-StopLine = 0
-
-G = nx.Graph()
-
-visitLinkDict = dict()
-visitUrlDict = dict()
-onlineLink = dict()
-node_colors ="black"
-FULLURL = False
-print_toggle = 1
-urltimelist = []
-head_table = []
-report_list = []
-meta_list = []
-img_list = []
-img_list2 = []
-#img_string = ""
-#img_string2 = ""
-lang_list = []
-list_title = []                 ##check dupulicate title  []= [[url,title]] 2029.11.19
-list_function = []
-list_script =[]     ### [[name,path,type]]
-list_sns = dict()
-sns_details = {}
-list_html5_tag=dict()
-list_domain = []
-list_plugin = []
-list_search = []
-list_flash = []     ### replace flashCount
-list_para = set()
-#list_font = set()
-metaListset = set()
-list_302 = set()
-extion_count = dict()
-word_count = dict()
-incollect_path_list=set()
-esg_count = dict()
-html_tag=dict() ## check if remove 20241130
-start_tag=dict()
-end_tag=dict()
-
-AddFavoriteSet=set()
-AddFavoriteCount=0
-
-keyword_path = "/"
-list_record = []
-list_page = []
-list_header = []
-list_Search_string = []
-frameSetinformation = 0
-list_img_analysis = set()
-font_color_count = {}
-color_analysis_source_url = None
-font_color_source_url = None
 COLOR_ANALYSIS_MAX_IMAGES = 20
-input_url = "/"
-yearUrlskip = True
-year_list = [str(year) for year in range(2000, datetime.now().year + 1)]
 
-tmp_cccc = set()
-File_Download=[]
+
+def make_legacy_runtime_defaults():
+    return {
+        "counter": 0,
+        "costSavingMode": True,
+        "fullTreeMode": False,
+        "webPageColorAnalysis": True,
+        "keyWordList": 50,
+        "MinLinkLimit": 5,
+        "skipWordMode": True,
+        "caseSensitiveMode": False,
+        "http_https": "http",
+        "Debug_mode": False,
+        "Search_string": "",
+        "rptLang": 2,
+        "web_builder": "0",
+        "RestricedRestCycleCount": 99,
+        "RestricedOnlineLinkCount": 49,
+        "Redirection_level": 0,
+        "forbiddenWordEnable": False,
+        "siteMap_flag": False,
+        "baseUrl2": "",
+        "baseUrl": "",
+        "scanWebList": [],
+        "scanWebSet": set(),
+        "brokenLink": [],
+        "forbiddenList": [],
+        "imgCount": 0,
+        "imgAlt": 0,
+        "scriptCount": 0,
+        "styleCount": 0,
+        "cssCount": 0,
+        "cssCount2": 0,
+        "frameCount": 0,
+        "iframeCount": 0,
+        "anchorCount": 0,
+        "anchorTCount": 0,
+        "FaviconUrl": "zz",
+        "dbConnection": 0,
+        "dbConnection_id": 0,
+        "StopLine": 0,
+        "G": nx.Graph(),
+        "visitLinkDict": {},
+        "visitUrlDict": {},
+        "onlineLink": {},
+        "node_colors": "black",
+        "FULLURL": False,
+        "print_toggle": 1,
+        "urltimelist": [],
+        "head_table": {},
+        "report_list": [],
+        "meta_list": [],
+        "img_list": [],
+        "img_list2": [],
+        "lang_list": [],
+        "list_title": [],
+        "list_function": [],
+        "list_script": [],
+        "list_sns": {},
+        "sns_details": {},
+        "list_html5_tag": {},
+        "list_domain": [],
+        "list_plugin": [],
+        "list_search": [],
+        "list_flash": [],
+        "list_para": set(),
+        "metaListset": set(),
+        "list_302": set(),
+        "extion_count": {},
+        "word_count": {},
+        "incollect_path_list": set(),
+        "esg_count": {},
+        "html_tag": {},
+        "start_tag": {},
+        "end_tag": {},
+        "AddFavoriteSet": set(),
+        "AddFavoriteCount": 0,
+        "keyword_path": "/",
+        "list_record": [],
+        "list_page": [],
+        "list_header": [],
+        "list_Search_string": [],
+        "frameSetinformation": 0,
+        "list_img_analysis": set(),
+        "font_color_count": {},
+        "color_analysis_source_url": None,
+        "font_color_source_url": None,
+        "input_url": "/",
+        "yearUrlskip": True,
+        "year_list": [str(year) for year in range(2000, datetime.now().year + 1)],
+        "tmp_cccc": set(),
+        "File_Download": [],
+    }
+
+
+def reset_legacy_runtime_globals():
+    globals().update(make_legacy_runtime_defaults())
+
+
+reset_legacy_runtime_globals()
 
 
 @dataclass
@@ -6011,6 +6009,7 @@ def main():
     global head_table, siteMap_flag
     global font_color_count, color_analysis_source_url, font_color_source_url
 
+    reset_legacy_runtime_globals()
     ensure_output_directories()
     parser = argparse.ArgumentParser()
     parser.add_argument('-url', help='website address')
@@ -6045,9 +6044,6 @@ def main():
 
     args = parser.parse_args()
 
-    counter = 0
-    brokenLink = []
- 
     #K = nx.Graph()  2022.1.20
 
     url = args.url
