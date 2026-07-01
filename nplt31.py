@@ -4308,6 +4308,63 @@ def fetch_scan_page(url, parent_url):
         return None
 
 
+def parse_page_body(page_text):
+    content = bs(page_text, "html.parser")
+    word_html_string = extract_text(content)
+    try:
+        html_string = str(content)
+    except ValueError as error:
+        print(error)
+        html_string = ""
+    return content, word_html_string, html_string
+
+
+def record_html_structure(page_text, content):
+    global list_html5_tag
+
+    tags = extract_clean_tags(page_text, html_tag_list)
+
+    for tag in tags:
+        if "/" in tag:
+            tag = tag.replace("/", "")
+            end_tag[tag] = end_tag.get(tag, 0) + 1
+        else:
+            start_tag[tag] = start_tag.get(tag, 0) + 1
+
+    list_html5_tag = merge_dicts(
+        list_html5_tag,
+        check_html5_elements(content),
+    )
+
+
+def update_web_builder_from_content(content):
+    global web_builder
+
+    if web_builder == "0":
+        print("web site builder check...")
+        web_builder = identify_website_builder(content)
+
+
+def process_script_tags(content, url):
+    Debug_w(url + " begin to findall-script")
+    for slink in content.find_all("script"):
+        Debug_w(f"script tag: {str(slink)[:300]}")
+        extract_script_file(slink, url)
+        str_slink = str(slink)
+        if ".load" in str_slink:
+            html_temp_list = set_html_from_load(str_slink)
+            for temp_list in html_temp_list:
+                if " " in temp_list:
+                    continue
+                Debug_w(f"load target: {temp_list}")
+                tag = urlForm(temp_list, url, 0)
+                if tag is not None:
+                    addgraphNode(tag, url)
+                    Debug_w(f"load link: {tag} {url}")
+                    addScanList(tag, 1, url, 227)
+    Debug_w(url + " end of findall-script")
+
+
 def legacy_scanWeb(url, Purl):
 
     global baseUrl
@@ -4384,12 +4441,7 @@ def legacy_scanWeb(url, Purl):
         return
     page, page_text = page_result
 
-    #html_string = str(page.content)  ##20241020
-    #print(page.content)
-    content = bs(page_text, "html.parser")
-    #print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
-   
-    word_html_string = extract_text(content)
+    content, word_html_string, html_string = parse_page_body(page_text)
     Debug_w(url + " begin to read for body")
     # try:    ### 20241129 dupilicate code
     #     x = page.content
@@ -4401,56 +4453,13 @@ def legacy_scanWeb(url, Purl):
     ######################################################
     # basic html varidation check 2722
      ######################################################
-    tags = extract_clean_tags(page_text, html_tag_list)
-
-    for tag in tags:
-        if "/" in tag:
-            tag = tag.replace("/","")
-            end_tag[tag] = end_tag.get(tag, 0) + 1
-        else:
-            start_tag[tag] = start_tag.get(tag, 0) + 1
-
-   # cmp_tags = merge_dicts_as_tuples(start_tag, end_tag)  
+    record_html_structure(page_text, content)
     ######################################################
-    global list_html5_tag
-    list_html5_tag = merge_dicts(list_html5_tag, check_html5_elements(content))  ## 2024.07.21
-    ######################################################
-    global web_builder
-    if web_builder =="0":
-       # print(content)
-        print("web site builder check...")
-        web_builder = identify_website_builder(content)
+    update_web_builder_from_content(content)
     #######################################################
     # select of function in page
     #######################################################
-    Debug_w(url + " begin to findall-script")
-    #print("(0)",content)
-    for slink in content.find_all("script"):
-        #extract_function(str(slink), url)
-        Debug_w(f"script tag: {str(slink)[:300]}")
-        extract_script_file(slink, url)
-        str_slink=str(slink)
-        if ".load" in str_slink:  ## 2021.1.24
-            html_temp_list = set_html_from_load(str_slink)
-            for temp_list in html_temp_list:
-                if " " in temp_list:
-                    continue
-                Debug_w(f"load target: {temp_list}")
-                tag = urlForm(temp_list, url, 0)
-                if tag is not None:
-                    addgraphNode(tag,url)
-                    ##scanWeb(tag, url)
-                    Debug_w(f"load link: {tag} {url}")
-                    addScanList(tag,1,url,227)
-    Debug_w(url + " end of findall-script")
-    #print("1794", type(content))
-
-    try:
-        html_string = str(content)  
-    except ValueError as m:
-        print(m)
-    finally:
-        pass
+    process_script_tags(content, url)
 
     is_font_color_page = False
     if font_color_source_url is None and (
