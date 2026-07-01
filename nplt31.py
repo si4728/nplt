@@ -174,107 +174,6 @@ host_address = DB_CONFIG["host"]
 COLOR_ANALYSIS_MAX_IMAGES = 20
 
 
-def make_legacy_runtime_defaults():
-    return {
-        "counter": 0,
-        "costSavingMode": True,
-        "fullTreeMode": False,
-        "webPageColorAnalysis": True,
-        "keyWordList": 50,
-        "MinLinkLimit": 5,
-        "skipWordMode": True,
-        "caseSensitiveMode": False,
-        "http_https": "http",
-        "Debug_mode": False,
-        "Search_string": "",
-        "rptLang": 2,
-        "web_builder": "0",
-        "RestricedRestCycleCount": 99,
-        "RestricedOnlineLinkCount": 49,
-        "Redirection_level": 0,
-        "forbiddenWordEnable": False,
-        "siteMap_flag": False,
-        "baseUrl2": "",
-        "baseUrl": "",
-        "scanWebList": [],
-        "scanWebSet": set(),
-        "brokenLink": [],
-        "forbiddenList": [],
-        "imgCount": 0,
-        "imgAlt": 0,
-        "scriptCount": 0,
-        "styleCount": 0,
-        "cssCount": 0,
-        "cssCount2": 0,
-        "frameCount": 0,
-        "iframeCount": 0,
-        "anchorCount": 0,
-        "anchorTCount": 0,
-        "FaviconUrl": "zz",
-        "dbConnection": 0,
-        "dbConnection_id": 0,
-        "StopLine": 0,
-        "G": nx.Graph(),
-        "visitLinkDict": {},
-        "visitUrlDict": {},
-        "onlineLink": {},
-        "node_colors": "black",
-        "FULLURL": False,
-        "print_toggle": 1,
-        "urltimelist": [],
-        "head_table": {},
-        "report_list": [],
-        "meta_list": [],
-        "img_list": [],
-        "img_list2": [],
-        "lang_list": [],
-        "list_title": [],
-        "list_function": [],
-        "list_script": [],
-        "list_sns": {},
-        "sns_details": {},
-        "list_html5_tag": {},
-        "list_domain": [],
-        "list_plugin": [],
-        "list_search": [],
-        "list_flash": [],
-        "list_para": set(),
-        "metaListset": set(),
-        "list_302": set(),
-        "extion_count": {},
-        "word_count": {},
-        "incollect_path_list": set(),
-        "esg_count": {},
-        "html_tag": {},
-        "start_tag": {},
-        "end_tag": {},
-        "AddFavoriteSet": set(),
-        "AddFavoriteCount": 0,
-        "keyword_path": "/",
-        "list_record": [],
-        "list_page": [],
-        "list_header": [],
-        "list_Search_string": [],
-        "frameSetinformation": 0,
-        "list_img_analysis": set(),
-        "font_color_count": {},
-        "color_analysis_source_url": None,
-        "font_color_source_url": None,
-        "input_url": "/",
-        "yearUrlskip": True,
-        "year_list": [str(year) for year in range(2000, datetime.now().year + 1)],
-        "tmp_cccc": set(),
-        "File_Download": [],
-    }
-
-
-def reset_legacy_runtime_globals():
-    globals().update(make_legacy_runtime_defaults())
-
-
-reset_legacy_runtime_globals()
-
-
 @dataclass
 class NpltConfig:
     cost_saving_mode: bool = True
@@ -411,6 +310,129 @@ class NpltState:
     color_analysis_source_url: object = None
     font_color_source_url: object = None
     list_search_string: list = field(default_factory=list)
+    node_colors: str = "black"
+    full_url: bool = False
+    print_toggle: int = 1
+    lang_list: list = field(default_factory=list)
+    html_tag: dict = field(default_factory=dict)
+    frame_set_information: int = 0
+    year_list: list = field(
+        default_factory=lambda: [
+            str(year) for year in range(2000, datetime.now().year + 1)
+        ]
+    )
+
+    def to_legacy_globals(self, config=None):
+        if config is None:
+            config = NpltConfig()
+
+        return {
+            "costSavingMode": config.cost_saving_mode,
+            "fullTreeMode": config.full_tree_mode,
+            "webPageColorAnalysis": config.web_page_color_analysis,
+            "keyWordList": config.keyword_list,
+            "MinLinkLimit": config.min_link_limit,
+            "skipWordMode": config.skip_word_mode,
+            "caseSensitiveMode": config.case_sensitive_mode,
+            "Debug_mode": config.debug_mode,
+            "Search_string": config.search_string,
+            "rptLang": config.report_lang,
+            "forbiddenWordEnable": config.forbidden_word_enable,
+            "dbConnection": config.db_connection,
+            "dbConnection_id": config.db_connection_id,
+            "StopLine": config.stop_line,
+            "yearUrlskip": config.year_url_skip,
+            "keyword_path": config.keyword_path,
+            "File_Download": config.file_download,
+            "input_url": self.input_url,
+            "baseUrl": self.base_url,
+            "baseUrl2": self.base_url2,
+            "http_https": self.http_https,
+            "Redirection_level": self.redirection_level,
+            "web_builder": self.web_builder,
+            "online_score": self.online_score,
+            "ROBOTS_PARSER": self.robots_parser,
+            "RESPECT_ROBOTS": self.respect_robots,
+            "ROBOTS_TEXT": self.robots_text,
+            "ROBOTS_INFO": self.robots_info,
+            "counter": self.counter,
+            "G": self.graph,
+            "brokenLink": self.broken_links,
+            "scanWebList": self.scan_web_list,
+            "scanWebSet": self.scan_web_set,
+            "visitLinkDict": self.visit_link_dict,
+            "visitUrlDict": self.visit_url_dict,
+            "onlineLink": self.online_link,
+            "list_sns": self.sns_counts,
+            "sns_details": self.sns_details,
+            "urltimelist": self.url_time_list,
+            "imgCount": self.img_count,
+            "imgAlt": self.img_alt,
+            "scriptCount": self.script_count,
+            "styleCount": self.style_count,
+            "cssCount": self.css_count,
+            "cssCount2": self.css_count2,
+            "frameCount": self.frame_count,
+            "iframeCount": self.iframe_count,
+            "anchorCount": self.anchor_count,
+            "anchorTCount": self.anchor_text_count,
+            "FaviconUrl": self.favicon_url,
+            "AddFavoriteCount": self.add_favorite_count,
+            "AddFavoriteSet": self.add_favorite_set,
+            "extion_count": self.extension_count,
+            "word_count": self.word_count,
+            "esg_count": self.esg_count,
+            "list_title": self.title_list,
+            "list_script": self.script_list,
+            "list_domain": self.domain_list,
+            "list_function": self.function_list,
+            "list_para": self.function_parameter_set,
+            "list_flash": self.flash_list,
+            "list_plugin": self.plugin_list,
+            "list_search": self.search_results,
+            "report_list": self.report_list,
+            "list_record": self.record_list,
+            "list_page": self.page_list,
+            "list_header": self.header_list,
+            "metaListset": self.meta_tag_set,
+            "list_302": self.redirect_url_set,
+            "incollect_path_list": self.incomplete_path_set,
+            "head_table": self.head_table,
+            "siteMap_flag": self.sitemap_flag,
+            "list_img_analysis": self.image_analysis_list,
+            "img_list": self.image_extension_list,
+            "img_list2": self.external_image_extension_list,
+            "forbiddenList": self.forbidden_list,
+            "meta_list": self.meta_list,
+            "start_tag": self.start_tag,
+            "end_tag": self.end_tag,
+            "list_html5_tag": self.html5_tag_list,
+            "tmp_cccc": self.font_family_set,
+            "font_color_count": self.font_color_count,
+            "color_analysis_source_url": self.color_analysis_source_url,
+            "font_color_source_url": self.font_color_source_url,
+            "list_Search_string": self.list_search_string,
+            "node_colors": self.node_colors,
+            "FULLURL": self.full_url,
+            "print_toggle": self.print_toggle,
+            "lang_list": self.lang_list,
+            "html_tag": self.html_tag,
+            "frameSetinformation": self.frame_set_information,
+            "year_list": self.year_list,
+        }
+
+
+def make_legacy_runtime_defaults(config=None, state=None):
+    if state is None:
+        state = NpltState()
+    return state.to_legacy_globals(config)
+
+
+def reset_legacy_runtime_globals(config=None, state=None):
+    globals().update(make_legacy_runtime_defaults(config, state))
+
+
+reset_legacy_runtime_globals()
 
 
 class NpltScanner:
@@ -770,98 +792,7 @@ class NpltScanner:
         File_Download = self.config.file_download
 
     def apply_to_legacy_globals(self):
-        global costSavingMode, fullTreeMode, webPageColorAnalysis, keyWordList
-        global MinLinkLimit, skipWordMode, caseSensitiveMode, http_https
-        global Debug_mode, Search_string, rptLang, forbiddenWordEnable
-        global dbConnection, dbConnection_id, StopLine, yearUrlskip
-        global keyword_path, File_Download, input_url, baseUrl, baseUrl2
-        global web_builder, online_score
-        global ROBOTS_PARSER, RESPECT_ROBOTS, ROBOTS_TEXT, ROBOTS_INFO
-        global counter, brokenLink, scanWebList, scanWebSet, G
-        global Redirection_level
-        global visitLinkDict, visitUrlDict, onlineLink, list_Search_string, urltimelist
-        global list_sns, sns_details
-        global imgCount, imgAlt, scriptCount, styleCount, cssCount, cssCount2
-        global frameCount, iframeCount, anchorCount, anchorTCount
-        global FaviconUrl, AddFavoriteCount, AddFavoriteSet
-        global extion_count, word_count, esg_count, list_title, list_flash, list_plugin
-        global list_script, list_domain, list_function, list_para
-        global report_list, list_record, list_page, list_header
-        global metaListset, list_302, incollect_path_list, head_table, siteMap_flag
-        global list_search, list_img_analysis, img_list, img_list2, forbiddenList
-        global meta_list, start_tag, end_tag, list_html5_tag, tmp_cccc
-        global font_color_count, color_analysis_source_url, font_color_source_url
-
-        self.apply_config_to_legacy_globals()
-
-        input_url = self.state.input_url
-        baseUrl = self.state.base_url
-        baseUrl2 = self.state.base_url2
-        http_https = self.state.http_https
-        Redirection_level = self.state.redirection_level
-        web_builder = self.state.web_builder
-        online_score = self.state.online_score
-        ROBOTS_PARSER = self.state.robots_parser
-        RESPECT_ROBOTS = self.state.respect_robots
-        ROBOTS_TEXT = self.state.robots_text
-        ROBOTS_INFO = self.state.robots_info
-        counter = self.state.counter
-        G = self.state.graph
-        brokenLink = self.state.broken_links
-        scanWebList = self.state.scan_web_list
-        scanWebSet = self.state.scan_web_set
-        visitLinkDict = self.state.visit_link_dict
-        visitUrlDict = self.state.visit_url_dict
-        onlineLink = self.state.online_link
-        list_sns = self.state.sns_counts
-        sns_details = self.state.sns_details
-        urltimelist = self.state.url_time_list
-        imgCount = self.state.img_count
-        imgAlt = self.state.img_alt
-        scriptCount = self.state.script_count
-        styleCount = self.state.style_count
-        cssCount = self.state.css_count
-        cssCount2 = self.state.css_count2
-        frameCount = self.state.frame_count
-        iframeCount = self.state.iframe_count
-        anchorCount = self.state.anchor_count
-        anchorTCount = self.state.anchor_text_count
-        FaviconUrl = self.state.favicon_url
-        AddFavoriteCount = self.state.add_favorite_count
-        AddFavoriteSet = self.state.add_favorite_set
-        extion_count = self.state.extension_count
-        word_count = self.state.word_count
-        esg_count = self.state.esg_count
-        list_title = self.state.title_list
-        list_script = self.state.script_list
-        list_domain = self.state.domain_list
-        list_function = self.state.function_list
-        list_para = self.state.function_parameter_set
-        list_flash = self.state.flash_list
-        list_plugin = self.state.plugin_list
-        list_search = self.state.search_results
-        report_list = self.state.report_list
-        list_record = self.state.record_list
-        list_page = self.state.page_list
-        list_header = self.state.header_list
-        metaListset = self.state.meta_tag_set
-        list_302 = self.state.redirect_url_set
-        incollect_path_list = self.state.incomplete_path_set
-        head_table = self.state.head_table
-        siteMap_flag = self.state.sitemap_flag
-        list_img_analysis = self.state.image_analysis_list
-        img_list = self.state.image_extension_list
-        img_list2 = self.state.external_image_extension_list
-        forbiddenList = self.state.forbidden_list
-        meta_list = self.state.meta_list
-        start_tag = self.state.start_tag
-        end_tag = self.state.end_tag
-        list_html5_tag = self.state.html5_tag_list
-        tmp_cccc = self.state.font_family_set
-        font_color_count = self.state.font_color_count
-        color_analysis_source_url = self.state.color_analysis_source_url
-        font_color_source_url = self.state.font_color_source_url
-        list_Search_string = self.state.list_search_string
+        globals().update(self.state.to_legacy_globals(self.config))
 
 CURRENT_SCANNER = None
 
