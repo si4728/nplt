@@ -4365,6 +4365,128 @@ def process_script_tags(content, url):
     Debug_w(url + " end of findall-script")
 
 
+def should_collect_font_color(content, url):
+    global font_color_source_url
+
+    if font_color_source_url is None and (
+        content.find("style") is not None
+        or content.find(style=True) is not None
+        or content.find("link", rel=True, href=True) is not None
+    ):
+        font_color_source_url = url
+        return True
+    return False
+
+
+def collect_inline_font_colors(content):
+    first_page_css = "\n".join(
+        style.get_text(" ", strip=True)
+        for style in content.find_all("style")
+    )
+    first_page_css += "\n" + "\n".join(
+        tag.get("style", "")
+        for tag in content.find_all(style=True)
+    )
+    first_page_css += "\n" + "\n".join(
+        f"color:{tag.get('color')};"
+        for tag in content.find_all(color=True)
+    )
+    merge_color_counts(
+        font_color_count,
+        extract_font_colors(first_page_css),
+    )
+
+
+def collect_font_families_from_content(content, url):
+    global tmp_cccc
+
+    Debug_w(url + " begin to parsing for font")
+    tmp_cccc = tmp_cccc | collect_font_families(content)
+    Debug_w(url + " end of the font parcing procedure")
+
+
+def should_collect_color_images(content, url):
+    global color_analysis_source_url
+
+    if (
+        webPageColorAnalysis == True
+        and color_analysis_source_url is None
+        and content.find("img") is not None
+    ):
+        color_analysis_source_url = url
+        return True
+    return color_analysis_source_url == url
+
+
+def record_page_title(content, url):
+    Debug_w(url + " >>>title, head")
+    head_tag = None
+    try:
+        tmp_list = []
+        head_tag = content.find('head')
+        if head_tag != None:
+            tmp_title = head_tag.find('title')
+            if tmp_title != None:
+                str_title = str(tmp_title)
+
+                if ("403 " not in str_title) and ("404 " not in str_title):
+                    tmp_list.append(url)
+                    tmp_list.append(str_title)
+                    list_title.append(tmp_list)
+    except:
+        print("not found head tag", head_tag)
+
+
+def process_link_tags(content, url, is_font_color_page):
+    global cssCount2
+    global FaviconUrl
+
+    Debug_w(url + " >>>link, rel, href")
+    first_page_stylesheets = []
+    for frameset in content.find_all('link'):
+        tag = frameset.get("rel")
+        href = frameset.get("href")
+
+        if not tag or not href:
+            continue
+        try:
+            if tag[0].upper() == "STYLESHEET":
+                add_list_script(href, url, "css")
+                if is_font_color_page:
+                    first_page_stylesheets.append(urljoin(url, href))
+                if "http" in href.lower():
+                    if baseUrl not in href:
+                        cssCount2 = cssCount2 + 1
+            if ("icon" in tag or "ICON" in tag):
+                href = href.split(";")[0]
+                FaviconUrl = urlForm(href, url, 0)
+                Debug_w("FaviconUrl" + FaviconUrl)
+        except:
+            print("56-error", frameset, "*****", tag, "*******", href, "*****", type(href))
+    return first_page_stylesheets
+
+
+def collect_linked_stylesheet_fonts_and_colors(stylesheet_urls):
+    global tmp_cccc
+
+    for stylesheet_url in stylesheet_urls[:10]:
+        stylesheet_text = fetch_text(stylesheet_url)
+        if stylesheet_text:
+            tmp_cccc = tmp_cccc | parsing_fontlist(stylesheet_text)
+            merge_color_counts(
+                font_color_count,
+                extract_font_colors(stylesheet_text),
+            )
+
+
+def record_script_style_counts(content):
+    global scriptCount
+    global styleCount
+
+    scriptCount = scriptCount + len(content.find_all('script'))
+    styleCount = styleCount + len(content.find_all('style'))
+
+
 def legacy_scanWeb(url, Purl):
 
     global baseUrl
@@ -4373,9 +4495,6 @@ def legacy_scanWeb(url, Purl):
     global online_score
     global counter
     global RestricedRestCycleCount
-    global font_color_count
-    global color_analysis_source_url
-    global font_color_source_url
 
     prepared_url = prepare_scan_url(url, Purl)
     if prepared_url is None:
@@ -4461,32 +4580,9 @@ def legacy_scanWeb(url, Purl):
     #######################################################
     process_script_tags(content, url)
 
-    is_font_color_page = False
-    if font_color_source_url is None and (
-        content.find("style") is not None
-        or content.find(style=True) is not None
-        or content.find("link", rel=True, href=True) is not None
-    ):
-        font_color_source_url = url
-        is_font_color_page = True
-
+    is_font_color_page = should_collect_font_color(content, url)
     if is_font_color_page:
-        first_page_css = "\n".join(
-            style.get_text(" ", strip=True)
-            for style in content.find_all("style")
-        )
-        first_page_css += "\n" + "\n".join(
-            tag.get("style", "")
-            for tag in content.find_all(style=True)
-        )
-        first_page_css += "\n" + "\n".join(
-            f"color:{tag.get('color')};"
-            for tag in content.find_all(color=True)
-        )
-        merge_color_counts(
-            font_color_count,
-            extract_font_colors(first_page_css),
-        )
+        collect_inline_font_colors(content)
     
     # Debug_w(url + "finished convert string from bs4")
 
@@ -4511,100 +4607,19 @@ def legacy_scanWeb(url, Purl):
             list_search.append(tmp)
 
     #######################################################
-    Debug_w(url + " begin to parsing for font")
-    global tmp_cccc
-    tmp_cccc = tmp_cccc | collect_font_families(content)
-    Debug_w(url + " end of the font parcing procedure")
+    collect_font_families_from_content(content, url)
     #######################################################
     #print(content)
     #print(html_string)
-    collect_color_images = False
-    if (
-        webPageColorAnalysis == True
-        and color_analysis_source_url is None
-        and content.find("img") is not None
-    ):
-        color_analysis_source_url = url
-        collect_color_images = True
-    elif color_analysis_source_url == url:
-        collect_color_images = True
+    collect_color_images = should_collect_color_images(content, url)
 
-    global cssCount
-    global cssCount2
-    global scriptCount    
-    global styleCount
     global AddFavoriteCount
-    Debug_w(url + " >>>title, head")
-    try:
-        tmp_list = []
-        head_tag = content.find('head')  
-        if head_tag != None:
-            # for meta in head_tag.find_all('meta', content=True):
-            #     mtext = meta.text.strip()
-            #     if len(mtext) <  100 and len(mtext) > 1:
-            #         #print("2324,,,meta content", meta.name,mtext)
-            #         page_word_list.append(mtext)
-
-            tmp_title = head_tag.find('title')   
-            if tmp_title != None:
-                str_title = str(tmp_title)
-
-                # page_word_list.append(str_title)  ##2022.2.26
-                
-                if ("403 " not in str_title) and ("404 " not in str_title):
-                    tmp_list.append(url)
-                    tmp_list.append(str_title)
-
-                    list_title.append(tmp_list)
-    except:
-        print("not found head tag", head_tag)
-    #print(content)
-
-    Debug_w(url + " >>>link, rel, href")
-    first_page_stylesheets = []
-    for frameset in content.find_all('link'):  #rel="stylesheet" 
-        tag = frameset.get("rel")
-        href= frameset.get("href")
-        ctt = frameset.get("content")
-
-        # if tag == None:
-        #     continue
-        # if href==None:
-        #     continue
-        if not tag or not href:
-            continue
-        try:            
-            if tag[0].upper()=="STYLESHEET":
-                add_list_script(href, url, "css")
-                if is_font_color_page:
-                    first_page_stylesheets.append(urljoin(url, href))
-                if "http" in href.lower():
-                    if baseUrl not in href:
-                        cssCount2 = cssCount2 + 1
-            global FaviconUrl
-            if ("icon" in tag or "ICON" in tag):
-                href = href.split(";")[0]
-                FaviconUrl = urlForm(href, url, 0)
-                Debug_w("FaviconUrl" + FaviconUrl)
-
-                #print("FaviconUrl===",FaviconUrl)
-                # if "http" is not FaviconUrl[:4]:
-                #     FaviconUrl = http_https + "://" + FaviconUrl
-        except:
-            print("56-error", frameset, "*****", tag, "*******", href, "*****", type(href))
-
+    record_page_title(content, url)
+    first_page_stylesheets = process_link_tags(content, url, is_font_color_page)
     if is_font_color_page:
-        for stylesheet_url in first_page_stylesheets[:10]:
-            stylesheet_text = fetch_text(stylesheet_url)
-            if stylesheet_text:
-                tmp_cccc = tmp_cccc | parsing_fontlist(stylesheet_text)
-                merge_color_counts(
-                    font_color_count,
-                    extract_font_colors(stylesheet_text),
-                )
-          
-    scriptCount = scriptCount + len(content.find_all('script'))
-    styleCount = styleCount + len(content.find_all('style'))
+        collect_linked_stylesheet_fonts_and_colors(first_page_stylesheets)
+
+    record_script_style_counts(content)
 
     Debug_w("Begin html_adjust step")
     #######################################################
